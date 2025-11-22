@@ -22,36 +22,36 @@ import numpy as np
 # ============================================================
 
 PAUL_STANDARDS = {
-        "clarity": {
-        "name": "Clarity",
-        "color": "#3498DB",
-        "icon": "🔍",
-        "description": "Is the statement clear and understandable?",
-        "question": "Could you elaborate? Could you illustrate? Could you give an example?",
-        "indicators_positive": ["specifically", "for example", "in other words", "to illustrate", "meaning", "that is", "namely", "such as", "defined as", "to clarify"],
-        "indicators_negative": ["somehow", "something", "stuff", "things", "whatever", "kind of", "sort of", "like", "you know", "etc"],
-        "weight": 1.0
-    },
-    "accuracy": {
-        "name": "Accuracy",
-        "color": "#2ECC71",
-        "icon": "✓",
-        "description": "Is the statement true and free from errors?",
-        "question": "How could we verify this? How could we find out if this is true?",
-        "indicators_positive": ["according to", "research shows", "data indicates", "evidence suggests", "studies confirm", "verified", "documented", "proven", "factually", "statistics show"],
-        "indicators_negative": ["everyone knows", "obviously", "clearly", "always", "never", "all", "none", "definitely", "absolutely certain", "no doubt"],
-        "weight": 1.0
-    },
-    "precision": {
-        "name": "Precision",
-        "color": "#9B59B6",
-        "icon": "🎯",
-        "description": "Is the statement specific and detailed enough?",
-        "question": "Could you be more specific? Could you give more details?",
-        "indicators_positive": ["exactly", "precisely", "approximately", "measured", "calculated", "percent", "ratio", "specifically", "in particular", "detailed"],
-        "indicators_negative": ["a lot", "many", "few", "some", "often", "sometimes", "rarely", "big", "small", "good", "bad", "nice", "very"],
-        "weight": 1.0
-    },
+    "clarity": {
+        "name": "Clarity",
+        "color": "#3498DB",
+        "icon": "🔍",
+        "description": "Is the statement clear and understandable?",
+        "question": "Could you elaborate? Could you illustrate? Could you give an example?",
+        "indicators_positive": ["specifically", "for example", "in other words", "to illustrate", "meaning", "that is", "namely", "such as", "defined as", "to clarify"],
+        "indicators_negative": ["somehow", "something", "stuff", "things", "whatever", "kind of", "sort of", "like", "you know", "etc"],
+        "weight": 1.0
+    },
+    "accuracy": {
+        "name": "Accuracy",
+        "color": "#2ECC71",
+        "icon": "✓",
+        "description": "Is the statement true and free from errors?",
+        "question": "How could we verify this? How could we find out if this is true?",
+        "indicators_positive": ["according to", "research shows", "data indicates", "evidence suggests", "studies confirm", "verified", "documented", "proven", "factually", "statistics show"],
+        "indicators_negative": ["everyone knows", "obviously", "clearly", "always", "never", "all", "none", "definitely", "absolutely certain", "no doubt"],
+        "weight": 1.0
+    },
+    "precision": {
+        "name": "Precision",
+        "color": "#9B59B6",
+        "icon": "🎯",
+        "description": "Is the statement specific and detailed enough?",
+        "question": "Could you be more specific? Could you give more details?",
+        "indicators_positive": ["exactly", "precisely", "approximately", "measured", "calculated", "percent", "ratio", "specifically", "in particular", "detailed"],
+        "indicators_negative": ["a lot", "many", "few", "some", "often", "sometimes", "rarely", "big", "small", "good", "bad", "nice", "very"],
+        "weight": 1.0
+    },
     "relevance": {
         "name": "Relevance",
         "color": "#E67E22",
