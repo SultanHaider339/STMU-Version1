@@ -637,7 +637,7 @@ def create_progress_chart(sentence_results: List[Dict[str, Any]], title: str) ->
 #               REPORT GENERATION FUNCTIONS
 # ============================================================
 
-def generate_sentence_report_html(result: SentenceResult) -> str:
+def generate_sentence_report_html(result: Dict[str, Any]) -> str:
     """
     Generates a stylized HTML block report for a single sentence analysis result.
     """
