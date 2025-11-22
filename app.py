@@ -18,7 +18,7 @@ from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassifica
 import numpy as np
 
 # ============================================================
-#     PAUL'S STANDARDS OF CRITICAL THINKING - DEFINITIONS
+#       PAUL'S STANDARDS OF CRITICAL THINKING - DEFINITIONS
 # ============================================================
 
 PAUL_STANDARDS = {
@@ -52,75 +52,74 @@ PAUL_STANDARDS = {
         "indicators_negative": ["a lot", "many", "few", "some", "often", "sometimes", "rarely", "big", "small", "good", "bad", "nice", "very"],
         "weight": 1.0
     },
-    "relevance": {
-        "name": "Relevance",
-        "color": "#E67E22",
-        "icon": "🔗",
-        "description": "Does the statement relate to the issue at hand?",
-        "question": "How does this relate to the problem? How does this help with the issue?",
-        "indicators_positive": ["therefore", "consequently", "as a result", "this relates to", "connected to", "relevant because", "pertinent", "applicable", "bearing on", "in relation to"],
-        "indicators_negative": ["by the way", "incidentally", "speaking of", "anyway", "besides", "also", "moreover", "furthermore", "in addition"],
-        "weight": 1.0
-    },
-    "depth": {
-        "name": "Depth",
-        "color": "#E74C3C",
-        "icon": "📊",
-        "description": "Does the statement address the complexity of the issue?",
-        "question": "What factors make this difficult? What are the complexities?",
-        "indicators_positive": ["underlying", "fundamental", "root cause", "complexity", "nuanced", "multifaceted", "layers", "deeper", "systematic", "comprehensive", "thorough"],
-        "indicators_negative": ["simple", "easy", "just", "only", "merely", "basic", "straightforward", "obvious solution"],
-        "weight": 1.0
-    },
-    "breadth": {
-        "name": "Breadth",
-        "color": "#1ABC9C",
-        "icon": "🌐",
-        "description": "Does the statement consider other viewpoints?",
-        "question": "Is there another way to look at this? What would this look like from another perspective?",
-        "indicators_positive": ["alternatively", "on the other hand", "from another perspective", "considering also", "however", "conversely", "different view", "opposing argument", "some argue", "others believe"],
-        "indicators_negative": ["the only way", "must be", "has to be", "no other", "single solution", "one answer"],
-        "weight": 1.0
-    },
-    "logic": {
-        "name": "Logic",
-        "color": "#F1C40F",
-        "icon": "⚙️",
-        "description": "Does the statement make sense and follow logically?",
-        "question": "Does this follow from the evidence? Does this really make sense together?",
-        "indicators_positive": ["because", "therefore", "thus", "hence", "consequently", "it follows that", "logically", "reasoning", "if then", "implies", "leads to"],
-        "indicators_negative": ["but", "although", "despite", "regardless", "anyway", "still"],
-        "weight": 1.0
-    },
-    "significance": {
-        "name": "Significance",
-        "color": "#8E44AD",
-        "icon": "⭐",
-        "description": "Is this the most important issue to focus on?",
-        "question": "Is this the most important problem to consider? Which of these facts is most important?",
-        "indicators_positive": ["importantly", "significantly", "crucially", "essentially", "fundamentally", "key point", "primary", "central", "critical", "vital", "paramount"],
-        "indicators_negative": ["trivial", "minor", "insignificant", "unimportant", "negligible"],
-        "weight": 1.0
-    },
-    "fairness": {
-        "name": "Fairness",
-        "color": "#16A085",
-        "icon": "⚖️",
-        "description": "Is the statement free from bias and self-interest?",
-        "question": "Is my thinking justifiable? Am I considering others' viewpoints sympathetically?",
-        "indicators_positive": ["objectively", "impartially", "fairly", "balanced", "unbiased", "neutral", "considering all", "without prejudice", "equitably", "justly"],
-        "indicators_negative": ["obviously wrong", "stupid", "idiotic", "ridiculous", "absurd", "they always", "those people", "typical"],
-        "weight": 1.0
-    }
+    "relevance": {
+        "name": "Relevance",
+        "color": "#E67E22",
+        "icon": "🔗",
+        "description": "Does the statement relate to the issue at hand?",
+        "question": "How does this relate to the problem? How does this help with the issue?",
+        "indicators_positive": ["therefore", "consequently", "as a result", "this relates to", "connected to", "relevant because", "pertinent", "applicable", "bearing on", "in relation to"],
+        "indicators_negative": ["by the way", "incidentally", "speaking of", "anyway", "besides", "also", "moreover", "furthermore", "in addition"],
+        "weight": 1.0
+    },
+    "depth": {
+        "name": "Depth",
+        "color": "#E74C3C",
+        "icon": "📊",
+        "description": "Does the statement address the complexity of the issue?",
+        "question": "What factors make this difficult? What are the complexities?",
+        "indicators_positive": ["underlying", "fundamental", "root cause", "complexity", "nuanced", "multifaceted", "layers", "deeper", "systematic", "comprehensive", "thorough"],
+        "indicators_negative": ["simple", "easy", "just", "only", "merely", "basic", "straightforward", "obvious solution"],
+        "weight": 1.0
+    },
+    "breadth": {
+        "name": "Breadth",
+        "color": "#1ABC9C",
+        "icon": "🌐",
+        "description": "Does the statement consider other viewpoints?",
+        "question": "Is there another way to look at this? What would this look like from another perspective?",
+        "indicators_positive": ["alternatively", "on the other hand", "from another perspective", "considering also", "however", "conversely", "different view", "opposing argument", "some argue", "others believe"],
+        "indicators_negative": ["the only way", "must be", "has to be", "no other", "single solution", "one answer"],
+        "weight": 1.0
+    },
+    "logic": {
+        "name": "Logic",
+        "color": "#F1C40F",
+        "icon": "⚙️",
+        "description": "Does the statement make sense and follow logically?",
+        "question": "Does this follow from the evidence? Does this really make sense together?",
+        "indicators_positive": ["because", "therefore", "thus", "hence", "consequently", "it follows that", "logically", "reasoning", "if then", "implies", "leads to"],
+        "indicators_negative": ["but", "although", "despite", "regardless", "anyway", "still"],
+        "weight": 1.0
+    },
+    "significance": {
+        "name": "Significance",
+        "color": "#8E44AD",
+        "icon": "⭐",
+        "description": "Is this the most important issue to focus on?",
+        "question": "Is this the most important problem to consider? Which of these facts is most important?",
+        "indicators_positive": ["importantly", "significantly", "crucially", "essentially", "fundamentally", "key point", "primary", "central", "critical", "vital", "paramount"],
+        "indicators_negative": ["trivial", "minor", "insignificant", "unimportant", "negligible"],
+        "weight": 1.0
+    },
+    "fairness": {
+        "name": "Fairness",
+        "color": "#16A085",
+        "icon": "⚖️",
+        "description": "Is the statement free from bias and self-interest?",
+        "question": "Is my thinking justifiable? Am I considering others' viewpoints sympathetically?",
+        "indicators_positive": ["objectively", "impartially", "fairly", "balanced", "unbiased", "neutral", "considering all", "without prejudice", "equitably", "justly"],
+        "indicators_negative": ["obviously wrong", "stupid", "idiotic", "ridiculous", "absurd", "they always", "those people", "typical"],
+        "weight": 1.0
+    }
 }
 
 SCORE_LEVELS = {
-    "excellent": {"min": 0.75, "color": "#2ECC71", "label": "Excellent", "icon": "🌟"},
-    "good": {"min": 0.55, "color": "#3498DB", "label": "Good", "icon": "✅"},
-    "adequate": {"min": 0.35, "color": "#F1C40F", "label": "Adequate", "icon": "⚠️"},
-    "needs_work": {"min": 0.0, "color": "#E74C3C", "label": "Needs Improvement", "icon": "❌"}
+    "excellent": {"min": 0.75, "color": "#2ECC71", "label": "Excellent", "icon": "🌟"},
+    "good": {"min": 0.55, "color": "#3498DB", "label": "Good", "icon": "✅"},
+    "adequate": {"min": 0.35, "color": "#F1C40F", "label": "Adequate", "icon": "⚠️"},
+    "needs_work": {"min": 0.0, "color": "#E74C3C", "label": "Needs Improvement", "icon": "❌"}
 }
-
 # ============================================================
 #           DATA EXTRACTION & PREPROCESSING
 # ============================================================
