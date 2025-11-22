@@ -508,7 +508,7 @@ def create_standards_bar_chart(averages: Dict[str, float], title: str) -> go.Fig
 
 # ---
 
-def create_sentence_heatmap(sentence_results: List[SentenceResult], title: str) -> go.Figure:
+def create_sentence_heatmap(sentence_results: List[Dict[str, Any]], title: str) -> go.Figure:
     """
     Creates a heatmap showing the score of every sentence against every standard.
     (Limited to the first 30 sentences for readability.)
