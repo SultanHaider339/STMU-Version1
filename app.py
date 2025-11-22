@@ -466,7 +466,7 @@ def create_standard_radar(averages: Dict[str, float], title: str) -> go.Figure:
 
 # ---
 
-def create_standards_bar_chart(averages: StandardAverages, title: str) -> go.Figure:
+def create_standards_bar_chart(averages: Dict[str, float], title: str) -> go.Figure:
     """
     Creates a horizontal bar chart showing the average score for each standard,
     colored by the standard's defined color.
