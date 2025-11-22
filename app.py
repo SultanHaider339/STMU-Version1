@@ -583,7 +583,7 @@ def create_score_distribution(sentence_results: List[Dict[str, Any]], title: str
 
 # ---
 
-def create_progress_chart(sentence_results: List[SentenceResult], title: str) -> go.Figure:
+def create_progress_chart(sentence_results: List[Dict[str, Any]], title: str) -> go.Figure:
     """
     Creates a line chart showing the progression of the overall score through the document,
     including a linear trend line.
