@@ -7,14 +7,15 @@ import io
 import re
 from typing import Dict, Any, List, Union
 from datetime import datetime
-import pypdf
-import docx
+# Ensure pypdf and python-docx are installed: pip install pypdf python-docx
+import pypdf 
+import docx 
 
 # ============================================================
-# ➡️ GLOBAL TYPE ALIASES & CONSTANTS (using base types to prevent NameErrors)
+# ➡️ GLOBAL TYPE ALIASES & CONSTANTS
 # ============================================================
 
-# Define the custom types (using base types for safety in complex apps)
+# Define the custom types (using base types for stability)
 StandardAverages = Dict[str, float]
 SentenceResult = Dict[str, Any]
 DocumentResult = Dict[str, Any]
@@ -54,43 +55,66 @@ class CriticalThinkingAnalyzer:
 
     def analyze_document(self, sentences: List[str], doc_name: str, doc_id: str) -> DocumentResult:
         if not sentences:
-            return {"total_sentences": 0}
+            return {"total_sentences": 0, "standard_std_dev": 0.0, "overall_average": 0.0, "overall_level": SCORE_LEVELS["needs_work"]}
 
         # Simple mock logic for demonstration purposes
-        mock_score = 0.45 
-        standard_averages = {k: mock_score for k in self.standard_keys}
-        overall_avg = sum(standard_averages.values()) / len(standard_averages)
-        overall_level = self._get_score_level(overall_avg)
         
+        # Base mock score slightly below average to show "Needs Work" level
+        base_mock_score = 0.45 
+        
+        standard_scores_list = []
+        sentence_overall_scores = []
         sentence_results = []
+
         for i, sentence in enumerate(sentences):
-            sentence_score = overall_avg + np.random.uniform(-0.1, 0.1)
-            level_data = self._get_score_level(sentence_score)
-            
+            # Simulate slight variation across standards
             standards_analysis = {}
+            sentence_standards_scores = []
+            
             for k in self.standard_keys:
+                # Simulate a score that varies slightly from the base mock score
+                score = max(0.0, min(1.0, base_mock_score + np.random.uniform(-0.15, 0.15)))
+                
                 standards_analysis[k] = {
                     "standard_name": PAUL_STANDARDS[k]["name"],
-                    "score": max(0.0, min(1.0, standard_averages[k] + np.random.uniform(-0.1, 0.1))),
-                    "level": self._get_score_level(standard_averages[k]),
+                    "score": score,
+                    "level": self._get_score_level(score),
                     "color": PAUL_STANDARDS[k]["color"],
                     "icon": PAUL_STANDARDS[k]["icon"],
-                    "feedback": f"Mock feedback for {PAUL_STANDARDS[k]['name'].lower()}.",
+                    "feedback": f"Mock feedback for {PAUL_STANDARDS[k]['name'].lower()}. This standard scored {score:.0%}.",
                     "question": PAUL_STANDARDS[k]['question']
                 }
-
+                sentence_standards_scores.append(score)
+            
+            # Sentence overall score is the average of its standard scores
+            sentence_overall_score = np.mean(sentence_standards_scores)
+            sentence_overall_scores.append(sentence_overall_score)
+            
+            level_data = self._get_score_level(sentence_overall_score)
+            standard_scores_list.append(sentence_standards_scores) # List of lists for correlation
+            
             sentence_results.append({
                 "index": i + 1,
                 "sentence": sentence,
                 "word_count": len(sentence.split()),
                 "standards": standards_analysis,
-                "overall_score": sentence_score,
+                "overall_score": sentence_overall_score,
                 "overall_level": level_data,
                 "strengths": [PAUL_STANDARDS["clarity"]["name"]],
                 "weaknesses": [PAUL_STANDARDS["fairness"]["name"]],
                 "recommendations": []
             })
-            
+        
+        # Calculate final document averages and statistics
+        df_scores = pd.DataFrame(standard_scores_list, columns=self.standard_keys)
+        
+        standard_averages = df_scores.mean().to_dict()
+        overall_avg = np.mean(sentence_overall_scores)
+        overall_level = self._get_score_level(overall_avg)
+        
+        # ➡️ ENHANCEMENT 1: Consistency Metrics
+        standard_std_dev = df_scores.mean().std() # Std Dev of the 9 average standard scores
+        
         return {
             "document_name": doc_name,
             "document_id": doc_id,
@@ -98,10 +122,13 @@ class CriticalThinkingAnalyzer:
             "sentence_results": sentence_results,
             "standard_averages": standard_averages,
             "overall_average": overall_avg,
-            "overall_level": overall_level
+            "overall_level": overall_level,
+            "standard_std_dev": standard_std_dev,
+            "df_scores": df_scores # Keep DataFrame for correlation calculation
         }
 
     def _get_score_level(self, score: float) -> Dict[str, Any]:
+        """Finds the appropriate level (Excellent, Good, etc.) for a given score."""
         for level_data in self.score_levels.values():
             if score >= level_data["min"]:
                 return level_data
@@ -109,17 +136,15 @@ class CriticalThinkingAnalyzer:
 
 
 def extract_text_from_file(file_source: Union[io.BytesIO, Any], file_type: str) -> str:
-    """Mock stub for file extraction using pypdf/docx"""
+    """Extracts text from various file types."""
     if file_type == 'pdf':
         try:
-            # Assuming pypdf is installed and working
             reader = pypdf.PdfReader(file_source)
             return "\n".join(page.extract_text() for page in reader.pages if page.extract_text())
         except Exception:
             return "ERROR_PDF_EXTRACTION"
     elif file_type == 'docx':
         try:
-            # Assuming python-docx is installed and working
             document = docx.Document(file_source)
             return "\n".join(p.text for p in document.paragraphs if p.text)
         except Exception:
@@ -134,13 +159,14 @@ def extract_text_from_file(file_source: Union[io.BytesIO, Any], file_type: str) 
 
 
 def preprocess_text(text: str) -> List[str]:
-    """Splits text into sentences."""
+    """Splits text into sentences and filters."""
     sentences = re.split(r'(?<=[.?!])\s+', text)
+    # Filter out very short or empty strings
     return [s.strip() for s in sentences if s.strip() and len(s.strip()) > 10]
 
 
 # ============================================================
-# ➡️ VISUALIZATION FUNCTIONS (using simplified base types)
+# ➡️ VISUALIZATION FUNCTIONS
 # ============================================================
 
 def create_standard_radar(averages: StandardAverages, title: str) -> go.Figure:
@@ -177,9 +203,13 @@ def create_progress_chart(sentence_results: List[SentenceResult], title: str) ->
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=indices, y=overall_scores, mode='lines+markers', name='Overall Score', line=dict(color='#667eea', width=3), marker=dict(size=5)))
     x_np, y_np = np.array(indices), np.array(overall_scores)
-    z = np.polyfit(x_np, y_np, 1)
-    p = np.poly1d(z)
-    fig.add_trace(go.Scatter(x=x_np, y=p(x_np), mode='lines', name=f'Trend Line (Slope: {z[0]:.3f})', line=dict(color='#E74C3C', width=2, dash='dash')))
+    
+    # Calculate trend line
+    if len(x_np) > 1:
+        z = np.polyfit(x_np, y_np, 1)
+        p = np.poly1d(z)
+        fig.add_trace(go.Scatter(x=x_np, y=p(x_np), mode='lines', name=f'Trend Line (Slope: {z[0]:.3f})', line=dict(color='#E74C3C', width=2, dash='dash')))
+    
     fig.update_layout(title=title, xaxis_title="Sentence Number", yaxis_title="Score", yaxis=dict(range=[0, 1.05]), height=350, template="plotly_dark", hovermode="x unified")
     return fig
 
@@ -196,6 +226,34 @@ def create_sentence_heatmap(sentence_results: List[SentenceResult], title: str) 
     fig.update_layout(height=max(400, len(labels) * 25), template="plotly_dark", xaxis=dict(tickangle=45), coloraxis_colorbar=dict(title="Score"))
     return fig
 
+# ➡️ ENHANCEMENT 3: Correlation Heatmap
+def create_standards_correlation_heatmap(df_scores: pd.DataFrame, title: str) -> go.Figure:
+    """Generates a Plotly heatmap showing the correlation matrix between all standards."""
+    if df_scores.empty or len(df_scores) < 2: return go.Figure()
+    
+    # Calculate the Pearson correlation matrix
+    correlation_matrix = df_scores.corr()
+    standards_names = [PAUL_STANDARDS[key]['name'] for key in df_scores.columns]
+    
+    fig = px.imshow(
+        correlation_matrix, 
+        x=standards_names, 
+        y=standards_names, 
+        color_continuous_scale="RdBu", # Use a diverging color scale for correlation
+        zmin=-1, zmax=1,
+        title=title,
+        text_auto=".2f",
+        aspect="auto"
+    )
+    
+    fig.update_layout(
+        template="plotly_dark", 
+        height=500,
+        xaxis=dict(tickangle=45),
+        coloraxis_colorbar=dict(title="Correlation")
+    )
+    return fig
+
 
 # ============================================================
 # ➡️ HTML GENERATION FUNCTIONS
@@ -203,6 +261,7 @@ def create_sentence_heatmap(sentence_results: List[SentenceResult], title: str) 
 
 def generate_sentence_report_html(result: SentenceResult) -> str:
     """Generates the HTML content for a single sentence analysis."""
+    # (The HTML generation function is retained for the download button functionality)
     overall_level = result['overall_level']
     html = f"""<div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); padding: 20px; border-radius: 15px; margin: 15px 0; border-left: 5px solid {overall_level['color']};">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
@@ -236,19 +295,19 @@ def generate_sentence_report_html(result: SentenceResult) -> str:
     return html
 
 
+def get_level_data(score: float, score_levels: Dict[str, Any]) -> Dict[str, Any]:
+    """Helper to find the level for a score based on SCORE_LEVELS dictionary."""
+    for level_data in score_levels.values():
+        if score >= level_data["min"]:
+            return level_data
+    return score_levels["needs_work"]
+
+
 def generate_full_report_html(doc_result: DocumentResult) -> str:
     """ 
     Generates a complete, downloadable HTML report including document summary and 
     all detailed sentence analyses.
     """
-    # Helper to find the level for a score based on SCORE_LEVELS dictionary
-    def get_level_data(score: float, score_levels: Dict[str, Any]) -> Dict[str, Any]:
-        for level_data in score_levels.values():
-            if score >= level_data["min"]:
-                return level_data
-        return score_levels["needs_work"]
-    
-    # Find strongest/weakest area for the summary metrics
     strongest_standard = max(doc_result['standard_averages'], key=doc_result['standard_averages'].get)
     weakest_standard = min(doc_result['standard_averages'], key=doc_result['standard_averages'].get)
 
@@ -396,6 +455,14 @@ def main():
         background-color: #1a1a2e !important;
         border: 1px solid #333;
     }
+    .dataframe-container th {
+        background-color: #282c3f !important;
+        color: #ccc !important;
+    }
+    .dataframe-container td {
+        background-color: #1a1a2e !important;
+        color: white !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -418,41 +485,37 @@ def main():
                 doc_name = uploaded_file.name
                 file_type = uploaded_file.name.split('.')[-1].lower()
                 
-                # Reset file pointer for reading
                 uploaded_file.seek(0)
                 text_result = extract_text_from_file(uploaded_file, file_type)
                 
                 if text_result.startswith("ERROR_"):
-                    st.error(f"File extraction failed: {text_result}")
+                    st.error(f"File extraction failed. Ensure required libraries (pypdf, python-docx) are installed.")
                 else:
                     user_text = text_result
         else:
             default_text = "The current economic policy is obviously flawed. It should be changed immediately because everyone knows a different system will clearly yield better results, but all the politicians are too corrupt to understand the simple solution."
             user_text = st.text_area("Paste Text for Analysis", height=300, value=default_text)
             
-        # Add a section to display the raw text for verification
         st.subheader("Raw Text Preview")
         st.code(user_text[:500] + ('...' if len(user_text) > 500 else ''), language='text')
 
     # --- Main Content Area ---
     if user_text:
-        # Preprocess and Analyze
         try:
             sentences = preprocess_text(user_text)
             if not sentences:
                 st.warning("The extracted text is too short or could not be properly segmented into sentences (min 10 characters).")
                 st.stop()
 
-            # Initialize Analyzer and Run Analysis
             analyzer = CriticalThinkingAnalyzer()
-            doc_id = str(hash(user_text)) # Simple deterministic ID
+            doc_id = str(hash(user_text))
             doc_result = analyzer.analyze_document(sentences, doc_name, doc_id)
 
             st.success(f"Analysis Complete: {doc_result['total_sentences']} sentences processed from **{doc_name}**.")
             
             # --- 1. Overall Metrics ---
             st.header("📊 Document Overview")
-            col1, col2, col3, col4 = st.columns(4)
+            col1, col2, col3, col4, col5 = st.columns(5) # Added one more column for the new metric
 
             overall_level = doc_result['overall_level']
             strongest = max(doc_result['standard_averages'], key=doc_result['standard_averages'].get)
@@ -490,26 +553,50 @@ def main():
                 </div>
                 """, unsafe_allow_html=True)
 
+            # ➡️ ENHANCEMENT 1: Display Consistency Metric
+            with col5:
+                # Lower Std Dev is better (more consistent)
+                consistency_color = "#2ECC71" if doc_result['standard_std_dev'] < 0.05 else "#F1C40F"
+                consistency_icon = "👍" if doc_result['standard_std_dev'] < 0.05 else "⚠️"
+                
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div class="metric-value-large" style="color: {consistency_color};">{doc_result['standard_std_dev']:.3f}</div>
+                    <div class="metric-label-small">Standard Deviation of Scores (Consistency) {consistency_icon}</div>
+                </div>
+                """, unsafe_allow_html=True)
+
+
             st.markdown("---")
 
             # --- 2. Visualization Charts ---
             st.header("📈 Visualization of Standards")
+            
+            # Row 1 of Charts (Radar, Bar)
             chart_col1, chart_col2 = st.columns(2)
-
             with chart_col1:
-                # Radar Chart: Excellent for multi-dimensional comparison 
                 st.plotly_chart(create_standard_radar(doc_result['standard_averages'], "Standards Radar Chart"), use_container_width=True)
-                
-
             with chart_col2:
-                # Bar Chart: Best for ranked list/comparison 
                 st.plotly_chart(create_standards_bar_chart(doc_result['standard_averages'], "Average Score by Standard"), use_container_width=True)
 
-            # Progress Chart: Time series analysis 
-            st.plotly_chart(create_progress_chart(doc_result['sentence_results'], "Critical Thinking Score Progression Through Document"), use_container_width=True)
-            
+            # Row 2 of Charts (Progress, Heatmap/Correlation)
+            st.header("🔬 Advanced Analysis")
+            chart_col3, chart_col4 = st.columns(2)
+
+            with chart_col3:
+                # Progress Chart: Time series analysis
+                st.plotly_chart(create_progress_chart(doc_result['sentence_results'], "Critical Thinking Score Progression Through Document"), use_container_width=True)
+                
+            with chart_col4:
+                # ➡️ ENHANCEMENT 3: Correlation Heatmap
+                if doc_result['total_sentences'] > 1:
+                    st.plotly_chart(create_standards_correlation_heatmap(doc_result['df_scores'], "Standards Score Correlation Matrix"), use_container_width=True)
+                    
+                else:
+                    st.info("Need more than one sentence to calculate standards correlation.")
+
+
             if len(doc_result['sentence_results']) > 1:
-                # Heatmap: Shows score distribution across many sentences/standards 
                 st.plotly_chart(create_sentence_heatmap(doc_result['sentence_results'], "Sentence-by-Sentence Score Heatmap (First 30)"), use_container_width=True)
 
             st.markdown("---")
@@ -519,12 +606,53 @@ def main():
             
             # Selector for Sentence
             sentence_options = {r['index']: r['sentence'][:70] + '...' for r in doc_result['sentence_results']}
-            selected_index = st.selectbox("Select a Sentence to View Details", options=list(sentence_options.keys()), format_func=lambda x: f"Sentence {x}: {sentence_options[x]}")
+            selected_index = st.selectbox("Select a Sentence to View Details", 
+                                          options=list(sentence_options.keys()), 
+                                          format_func=lambda x: f"Sentence {x}: {sentence_options[x]}",
+                                          key="sentence_selector")
 
             selected_result = next((r for r in doc_result['sentence_results'] if r['index'] == selected_index), None)
 
+            # ➡️ ENHANCEMENT 4: Display feedback in a native Streamlit table
             if selected_result:
-                st.markdown(generate_sentence_report_html(selected_result), unsafe_allow_html=True)
+                st.subheader(f"Analysis for Sentence {selected_index}")
+                st.markdown(f"**Original Text:** *\"{selected_result['sentence']}\"*")
+                st.markdown(f"**Overall Score:** **{selected_result['overall_score']:.1%}** ({selected_result['overall_level']['label']} {selected_result['overall_level']['icon']})")
+                
+                # Prepare data for native DataFrame
+                standards_data = []
+                for key, analysis in selected_result['standards'].items():
+                    standards_data.append({
+                        "Standard": f"{analysis['icon']} {analysis['standard_name']}",
+                        "Score": f"{analysis['score']:.1%}",
+                        "Level": analysis['level']['label'],
+                        "Feedback & Question": f"{analysis['feedback']} | Focus: {analysis['question']}"
+                    })
+                
+                df_detail = pd.DataFrame(standards_data)
+
+                # Use markdown table for better styling control or dataframe
+                st.markdown('<div class="dataframe-container">', unsafe_allow_html=True)
+                st.dataframe(
+                    df_detail, 
+                    use_container_width=True, 
+                    hide_index=True,
+                    column_config={
+                        "Standard": st.column_config.Column(width="small"),
+                        "Score": st.column_config.Column(width="small"),
+                        "Level": st.column_config.Column(width="small"),
+                        "Feedback & Question": st.column_config.Column(width="large"),
+                    }
+                )
+                st.markdown('</div>', unsafe_allow_html=True)
+                
+                # Strengths/Weaknesses summary
+                col_s, col_w = st.columns(2)
+                with col_s:
+                    st.success(f"💪 **Strengths:** {', '.join(selected_result['strengths'])}")
+                with col_w:
+                    st.error(f"🎯 **Weaknesses:** {', '.join(selected_result['weaknesses'])}")
+
 
             st.markdown("---")
 
@@ -541,11 +669,13 @@ def main():
 
 
         except Exception as e:
-            st.error(f"An unexpected error occurred during analysis: {e}")
+            st.error(f"An unexpected error occurred during analysis: {e}. Check console for details.")
             st.exception(e)
 
     else:
         st.info("Paste or upload a document in the sidebar to begin the Critical Thinking Analysis.")
 
 if __name__ == '__main__':
+    # Add a check for essential non-standard libraries (pypdf, docx) if you want robust error handling before main()
+    # E.g., try: import pypdf except ImportError: print("Pypdf not installed. File upload will fail.")
     main()
