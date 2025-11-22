@@ -22,7 +22,7 @@ import numpy as np
 # ============================================================
 
 PAUL_STANDARDS = {
-    "clarity": {
+        "clarity": {
         "name": "Clarity",
         "color": "#3498DB",
         "icon": "🔍",
