@@ -719,7 +719,8 @@ def generate_sentence_report_html(result: Dict[str, Any]) -> str:
 
 # ---
 
-def generate_full_report_html(doc_result: Dict[str, Any]) -> str:
+def generate_full_report_html(doc_result: DocumentResult) -> str:
+pass # ➡️ Add 'pass' if the function body is temporarily empty
 """ Generates a complete, downloadable HTML report including document summary and 
     all detailed sentence analyses.
     """
