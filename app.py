@@ -192,246 +192,234 @@ def preprocess_text(text: str) -> List[str]:
     # Filter for non-empty sentences longer than 10 characters
     return [s.strip() for s in sentences if s.strip() and len(s.strip()) > 10]
 # ============================================================
-#        PAUL'S CRITICAL THINKING ANALYZER ENGINE
+#         PAUL'S CRITICAL THINKING ANALYZER ENGINE
 # ============================================================
 
 class CriticalThinkingAnalyzer:
-    def __init__(self):
-        self.standards = PAUL_STANDARDS
-    
-    def analyze_standard(self, sentence: str, standard_key: str) -> Dict[str, Any]:
-        """Analyze a sentence against a specific standard"""
-        standard = self.standards[standard_key]
-        sentence_lower = sentence.lower()
-        words = sentence_lower.split()
-        
-        # Count positive and negative indicators
-        positive_count = 0
-        negative_count = 0
-        found_positive = []
-        found_negative = []
-        
-        for indicator in standard["indicators_positive"]:
-            if indicator.lower() in sentence_lower:
-                positive_count += 1
-                found_positive.append(indicator)
-        
-        for indicator in standard["indicators_negative"]:
-            if indicator.lower() in sentence_lower:
-                negative_count += 1
-                found_negative.append(indicator)
-        
-        # Calculate base score
-        base_score = 0.5  # Start neutral
-        
-        # Adjust for positive indicators
-        base_score += min(positive_count * 0.15, 0.4)
-        
-        # Penalize for negative indicators
-        base_score -= min(negative_count * 0.12, 0.35)
-        
-        # Additional heuristics per standard
-        score_adjustment = self._apply_heuristics(sentence, standard_key, words)
-        base_score += score_adjustment
-        
-        # Clamp score between 0 and 1
-        final_score = max(0.0, min(1.0, base_score))
-        
-        # Determine level
-        level = self._get_score_level(final_score)
-        
-        # Generate feedback
-        feedback = self._generate_feedback(standard_key, final_score, found_positive, found_negative)
-        
-        return {
-            "standard": standard_key,
-            "standard_name": standard["name"],
-            "score": final_score,
-            "level": level,
-            "color": standard["color"],
-            "icon": standard["icon"],
-            "positive_indicators": found_positive,
-            "negative_indicators": found_negative,
-            "feedback": feedback,
-            "question": standard["question"]
-        }
-    
-    def _apply_heuristics(self, sentence: str, standard_key: str, words: List[str]) -> float:
-        """Apply additional heuristics based on sentence structure"""
-        adjustment = 0.0
-        sentence_lower = sentence.lower()
-        
-        if standard_key == "clarity":
-            # Longer sentences with proper structure tend to be clearer
-            if len(words) > 8 and len(words) < 30:
-                adjustment += 0.05
-            # Questions often seek clarity
-            if "?" in sentence:
-                adjustment += 0.05
-            # Very short sentences may lack clarity
-            if len(words) < 5:
-                adjustment -= 0.1
-                
-        elif standard_key == "accuracy":
-            # Numbers and statistics suggest accuracy
-            if any(char.isdigit() for char in sentence):
-                adjustment += 0.1
-            # Quotes suggest citation
-            if '"' in sentence or "'" in sentence:
-                adjustment += 0.05
-                
-        elif standard_key == "precision":
-            # Numbers indicate precision
-            digit_count = sum(1 for c in sentence if c.isdigit())
-            adjustment += min(digit_count * 0.03, 0.15)
-            # Percentages are precise
-            if "%" in sentence or "percent" in sentence_lower:
-                adjustment += 0.1
-                
-        elif standard_key == "relevance":
-            # Connecting words show relevance
-            connectors = ["this", "that", "which", "these", "those"]
-            if any(c in words for c in connectors):
-                adjustment += 0.05
-                
-        elif standard_key == "depth":
-            # Longer, complex sentences often show depth
-            if len(words) > 15:
-                adjustment += 0.08
-            # Multiple clauses suggest depth
-            if sentence.count(",") >= 2:
-                adjustment += 0.05
-                
-        elif standard_key == "breadth":
-            # Comparative words show breadth
-            comparatives = ["while", "whereas", "compared", "contrast", "both", "either"]
-            if any(c in sentence_lower for c in comparatives):
-                adjustment += 0.1
-                
-        elif standard_key == "logic":
-            # Causal language shows logic
-            causal = ["cause", "effect", "result", "lead", "due to", "since"]
-            if any(c in sentence_lower for c in causal):
-                adjustment += 0.1
-                
-        elif standard_key == "significance":
-            # Emphasis words show significance awareness
-            emphasis = ["must", "need", "essential", "require", "necessary"]
-            if any(e in sentence_lower for e in emphasis):
-                adjustment += 0.08
-                
-        elif standard_key == "fairness":
-            # First person plural suggests inclusivity
-            if "we" in words or "our" in words:
-                adjustment += 0.05
-            # Absolute language reduces fairness
-            absolutes = ["always", "never", "everyone", "no one", "all", "none"]
-            if any(a in words for a in absolutes):
-                adjustment -= 0.1
-        
-        return adjustment
-    
-    def _get_score_level(self, score: float) -> Dict[str, Any]:
-        """Determine the performance level based on score"""
-        for level_key, level_data in SCORE_LEVELS.items():
-            if score >= level_data["min"]:
-                return {"key": level_key, **level_data}
-        return {"key": "needs_work", **SCORE_LEVELS["needs_work"]}
-    
-    def _generate_feedback(self, standard_key: str, score: float, 
-                          found_positive: List[str], found_negative: List[str]) -> str:
-        """Generate constructive feedback for the standard"""
-        standard = self.standards[standard_key]
-        
-        if score >= 0.75:
-            base = f"Excellent {standard['name'].lower()}! "
-            if found_positive:
-                base += f"Good use of: {', '.join(found_positive[:3])}."
-        elif score >= 0.55:
-            base = f"Good {standard['name'].lower()}. "
-            if found_negative:
-                base += f"Consider replacing: {', '.join(found_negative[:2])}."
-            else:
-                base += f"Could strengthen with more specific language."
-        elif score >= 0.35:
-            base = f"Adequate {standard['name'].lower()}, but needs improvement. "
-            base += f"Ask yourself: {standard['question']}"
-        else:
-            base = f"{standard['name']} needs significant improvement. "
-            if found_negative:
-                base += f"Avoid vague terms like: {', '.join(found_negative[:2])}. "
-            base += f"Consider: {standard['question']}"
-        
-        return base
-    
-    def analyze_sentence(self, sentence: str, index: int) -> Dict[str, Any]:
-        """Analyze a sentence against all Paul's Standards"""
-        results = {
-            "index": index,
-            "sentence": sentence,
-            "word_count": len(sentence.split()),
-            "standards": {},
-            "overall_score": 0.0,
-            "overall_level": None,
-            "strengths": [],
-            "weaknesses": [],
-            "recommendations": []
-        }
-        
-        total_score = 0.0
-        all_analyses = []
-        
-        for standard_key in self.standards:
-            analysis = self.analyze_standard(sentence, standard_key)
-            results["standards"][standard_key] = analysis
-            total_score += analysis["score"]
-            all_analyses.append((standard_key, analysis["score"]))
-        
-        # Calculate overall score
-        results["overall_score"] = total_score / len(self.standards)
-        results["overall_level"] = self._get_score_level(results["overall_score"])
-        
-        # Identify strengths and weaknesses
-        sorted_analyses = sorted(all_analyses, key=lambda x: x[1], reverse=True)
-        results["strengths"] = [self.standards[s[0]]["name"] for s in sorted_analyses[:3] if s[1] >= 0.55]
-        results["weaknesses"] = [self.standards[s[0]]["name"] for s in sorted_analyses[-3:] if s[1] < 0.55]
-        
-        # Generate recommendations
-        for standard_key, score in sorted_analyses[-2:]:
-            if score < 0.55:
-                results["recommendations"].append(self.standards[standard_key]["question"])
-        
-        return results
-    
-    def analyze_document(self, sentences: List[str], doc_name: str, doc_id: str) -> Dict[str, Any]:
-        """Analyze an entire document"""
-        sentence_results = []
-        standard_totals = {k: 0.0 for k in self.standards}
-        
-        for i, sentence in enumerate(sentences):
-            result = self.analyze_sentence(sentence, i + 1)
-            result["document_name"] = doc_name
-            result["document_id"] = doc_id
-            sentence_results.append(result)
-            
-            for standard_key in self.standards:
-                standard_totals[standard_key] += result["standards"][standard_key]["score"]
-        
-        # Calculate document-level statistics
-        num_sentences = len(sentences)
-        standard_averages = {k: v / num_sentences for k, v in standard_totals.items()}
-        overall_avg = sum(standard_averages.values()) / len(standard_averages)
-        
-        return {
-            "document_name": doc_name,
-            "document_id": doc_id,
-            "total_sentences": num_sentences,
-            "sentence_results": sentence_results,
-            "standard_averages": standard_averages,
-            "overall_average": overall_avg,
-            "overall_level": self._get_score_level(overall_avg)
-        }
+    """
+    Analyzes text against Richard Paul's Standards of Critical Thinking
+    using indicator keywords and structural heuristics.
+    """
+    def __init__(self, standards: Dict[str, Any], score_levels: Dict[str, Any]):
+        """Initializes the analyzer with defined standards and scoring levels."""
+        self.standards = standards
+        self.score_levels = score_levels
+        self.standard_keys = list(standards.keys())
 
+    def _get_score_level(self, score: float) -> Dict[str, Any]:
+        """Determine the performance level based on score."""
+        for level_data in self.score_levels.values():
+            if score >= level_data["min"]:
+                return level_data
+        # Default to the lowest level if score is below all defined minimums
+        return self.score_levels["needs_work"]
+    
+    # --- Core Analysis Methods ---
+
+    def _calculate_base_score(self, standard: Dict[str, Any], sentence_lower: str) -> tuple[float, List[str], List[str]]:
+        """Calculates the score adjustment based purely on keyword indicators."""
+        positive_indicators = standard.get("indicators_positive", [])
+        negative_indicators = standard.get("indicators_negative", [])
+        
+        found_positive = [ind for ind in positive_indicators if ind.lower() in sentence_lower]
+        found_negative = [ind for ind in negative_indicators if ind.lower() in sentence_lower]
+
+        # Start neutral (0.5)
+        base_score = 0.5 
+        
+        # Adjust for positive indicators (max +0.4)
+        positive_count = len(found_positive)
+        base_score += min(positive_count * 0.15, 0.4)
+        
+        # Penalize for negative indicators (max -0.35)
+        negative_count = len(found_negative)
+        base_score -= min(negative_count * 0.12, 0.35)
+        
+        return base_score, found_positive, found_negative
+
+    def _apply_heuristics(self, sentence: str, standard_key: str, words: List[str]) -> float:
+        """Applies additional structural and content-based score adjustments."""
+        adjustment = 0.0
+        sentence_lower = sentence.lower()
+        word_count = len(words)
+        
+        match standard_key:
+            case "clarity":
+                if 8 < word_count < 30: adjustment += 0.05
+                if "?" in sentence: adjustment += 0.05
+                if word_count < 5: adjustment -= 0.1
+                
+            case "accuracy":
+                if any(char.isdigit() for char in sentence): adjustment += 0.1
+                if any(q in sentence for q in ['"', "'"]): adjustment += 0.05 # Quotes suggest citation
+                
+            case "precision":
+                digit_count = sum(1 for c in sentence if c.isdigit())
+                adjustment += min(digit_count * 0.03, 0.15)
+                if "%" in sentence or "percent" in sentence_lower: adjustment += 0.1
+                
+            case "relevance":
+                connectors = ["this", "that", "which", "these", "those"]
+                if any(c in words for c in connectors): adjustment += 0.05
+                
+            case "depth":
+                if word_count > 15: adjustment += 0.08
+                if sentence.count(",") >= 2: adjustment += 0.05 # Multiple clauses
+                
+            case "breadth":
+                comparatives = ["while", "whereas", "compared", "contrast", "both", "either"]
+                if any(c in sentence_lower for c in comparatives): adjustment += 0.1
+                
+            case "logic":
+                causal = ["cause", "effect", "result", "lead", "due to", "since"]
+                if any(c in sentence_lower for c in causal): adjustment += 0.1
+                
+            case "significance":
+                emphasis = ["must", "need", "essential", "require", "necessary"]
+                if any(e in sentence_lower for e in emphasis): adjustment += 0.08
+                
+            case "fairness":
+                if "we" in words or "our" in words: adjustment += 0.05 # First person plural
+                # Absolute language reduces fairness
+                absolutes = ["always", "never", "everyone", "no one", "all", "none"]
+                if any(a in words for a in absolutes): adjustment -= 0.1
+                
+        return adjustment
+
+    def _generate_feedback(self, standard_key: str, score: float, 
+                           found_positive: List[str], found_negative: List[str]) -> str:
+        """Generates constructive feedback based on the standard and score."""
+        standard = self.standards[standard_key]
+        name = standard["name"].lower()
+        question = standard["question"]
+        
+        if score >= 0.75:
+            base = f"Excellent {name}! "
+            if found_positive:
+                base += f"Good use of strong indicators like: {', '.join(found_positive[:3])}."
+        elif score >= 0.55:
+            base = f"Good {name}. "
+            if found_negative:
+                base += f"Consider replacing vague or absolute terms like: {', '.join(found_negative[:2])}."
+            else:
+                base += "Could strengthen the argument with more explicit, specific language."
+        elif score >= 0.35:
+            base = f"Adequate {name}, but needs improvement. "
+            base += f"Focus on this question: {question}"
+        else: # Needs Improvement
+            base = f"{standard['name']} needs significant improvement. "
+            if found_negative:
+                base += f"Avoid vague or absolute terms like: {', '.join(found_negative[:2])}. "
+            base += f"Ask yourself: {question}"
+            
+        return base
+    
+    def analyze_standard(self, sentence: str, standard_key: str) -> Dict[str, Any]:
+        """Analyzes a sentence against a single Critical Thinking Standard."""
+        standard = self.standards[standard_key]
+        sentence_lower = sentence.lower()
+        words = sentence_lower.split()
+        
+        # 1. Calculate base score from indicators
+        base_score, found_positive, found_negative = self._calculate_base_score(standard, sentence_lower)
+        
+        # 2. Apply structural heuristics
+        score_adjustment = self._apply_heuristics(sentence, standard_key, words)
+        final_score = base_score + score_adjustment
+        
+        # 3. Clamp score between 0 and 1
+        final_score = max(0.0, min(1.0, final_score))
+        
+        # 4. Generate results
+        level = self._get_score_level(final_score)
+        feedback = self._generate_feedback(standard_key, final_score, found_positive, found_negative)
+        
+        return {
+            "standard_key": standard_key,
+            "standard_name": standard["name"],
+            "score": final_score,
+            "level": level,
+            "positive_indicators": found_positive,
+            "negative_indicators": found_negative,
+            "feedback": feedback,
+            "question": standard["question"]
+        }
+
+    # --- Document Analysis Methods ---
+
+    def analyze_sentence(self, sentence: str, index: int) -> Dict[str, Any]:
+        """Analyzes a sentence against all Critical Thinking Standards and provides an overall assessment."""
+        results = {
+            "index": index,
+            "sentence": sentence,
+            "word_count": len(sentence.split()),
+            "standards": {},
+            "overall_score": 0.0,
+            "overall_level": None,
+            "strengths": [],
+            "weaknesses": [],
+            "recommendations": []
+        }
+        
+        total_score = 0.0
+        all_analyses = []
+        
+        for standard_key in self.standard_keys:
+            analysis = self.analyze_standard(sentence, standard_key)
+            results["standards"][standard_key] = analysis
+            total_score += analysis["score"]
+            all_analyses.append((standard_key, analysis["score"]))
+            
+        # Calculate overall score and level
+        results["overall_score"] = total_score / len(self.standards)
+        results["overall_level"] = self._get_score_level(results["overall_score"])
+        
+        # Identify top 3 strengths and bottom 3 weaknesses (if below threshold)
+        sorted_analyses = sorted(all_analyses, key=lambda x: x[1], reverse=True)
+        
+        results["strengths"] = [self.standards[s[0]]["name"] for s in sorted_analyses[:3] if s[1] >= self.score_levels["good"]["min"]]
+        results["weaknesses"] = [self.standards[s[0]]["name"] for s in sorted_analyses[-3:] if s[1] < self.score_levels["adequate"]["min"]]
+        
+        # Generate recommendations from the lowest scoring standards
+        for standard_key, score in sorted_analyses[-2:]:
+            if score < self.score_levels["adequate"]["min"]:
+                results["recommendations"].append(self.standards[standard_key]["question"])
+                
+        return results
+        
+    def analyze_document(self, sentences: List[str], doc_name: str = "Document", doc_id: str = "0") -> Dict[str, Any]:
+        """Analyzes an entire document (list of sentences) and provides document-level statistics."""
+        sentence_results = []
+        standard_totals = {k: 0.0 for k in self.standards}
+        
+        for i, sentence in enumerate(sentences):
+            # Pass document metadata to sentence result (optional but useful)
+            result = self.analyze_sentence(sentence, i + 1)
+            result["document_name"] = doc_name
+            result["document_id"] = doc_id
+            sentence_results.append(result)
+            
+            # Accumulate scores for document average
+            for standard_key in self.standard_keys:
+                standard_totals[standard_key] += result["standards"][standard_key]["score"]
+        
+        # Calculate document-level statistics
+        num_sentences = len(sentences)
+        if num_sentences == 0:
+             return { "document_name": doc_name, "document_id": doc_id, "error": "No sentences to analyze." }
+
+        standard_averages = {k: v / num_sentences for k, v in standard_totals.items()}
+        overall_avg = sum(standard_averages.values()) / len(standard_averages)
+        
+        return {
+            "document_name": doc_name,
+            "document_id": doc_id,
+            "total_sentences": num_sentences,
+            "sentence_results": sentence_results,
+            "standard_averages": standard_averages,
+            "overall_average": overall_avg,
+            "overall_level": self._get_score_level(overall_avg)
+        }
 # ============================================================
 #              VISUALIZATION FUNCTIONS
 # ============================================================
