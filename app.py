@@ -121,41 +121,76 @@ SCORE_LEVELS = {
     "needs_work": {"min": 0.0, "color": "#E74C3C", "label": "Needs Improvement", "icon": "❌"}
 }
 # ============================================================
-#           DATA EXTRACTION & PREPROCESSING
+#               DATA EXTRACTION & PREPROCESSING
 # ============================================================
 
-def extract_text_from_file(file_path: Union[str, io.BytesIO], file_type: str) -> str:
-    text = ""
-    if file_type == 'pdf':
-        try:
-            reader = pypdf.PdfReader(file_path)
-            for page in reader.pages:
-                text += page.extract_text() + "\n"
-        except Exception as e:
-            return f"ERROR_PDF_EXTRACTION: {e}"
-    elif file_type == 'docx':
-        try:
-            document = docx.Document(file_path)
-            for paragraph in document.paragraphs:
-                text += paragraph.text + "\n"
-        except Exception as e:
-            return f"ERROR_DOCX_EXTRACTION: {e}"
-    elif file_type == 'txt':
-        try:
-            if isinstance(file_path, str):
-                text = open(file_path, 'r', encoding='utf-8').read()
-            else:
-                text = file_path.read().decode('utf-8')
-        except Exception as e:
-            return f"ERROR_TXT_EXTRACTION: {e}"
-    else:
-        return f"ERROR_UNSUPPORTED_TYPE: {file_type}"
-    return " ".join(text.split()).strip()
+def extract_text_from_file(file_source: Union[str, Path, io.BytesIO], file_type: str) -> str:
+    """
+    Extracts text content from PDF, DOCX, or TXT files.
+
+    Args:
+        file_source: The path to the file (str or Path) or a BytesIO object.
+        file_type: The file extension ('pdf', 'docx', 'txt').
+
+    Returns:
+        The extracted text as a single, cleaned string, or an ERROR message.
+    """
+    text = ""
+    file_type = file_type.strip().lower()
+
+    try:
+        match file_type:
+            case 'pdf':
+                # pypdf can handle both file paths and byte streams
+                reader = pypdf.PdfReader(file_source)
+                text = "\n".join(page.extract_text() for page in reader.pages if page.extract_text())
+            
+            case 'docx':
+                # docx.Document can handle file paths and file-like objects
+                document = docx.Document(file_source)
+                text = "\n".join(p.text for p in document.paragraphs if p.text)
+            
+            case 'txt':
+                if isinstance(file_source, (str, Path)):
+                    # Read from file path
+                    text = Path(file_source).read_text(encoding='utf-8')
+                elif isinstance(file_source, io.BytesIO):
+                    # Decode content from bytes stream
+                    text = file_source.read().decode('utf-8')
+                else:
+                    return f"ERROR_TXT_SOURCE: Unsupported source type for TXT file: {type(file_source)}"
+            
+            case _:
+                return f"ERROR_UNSUPPORTED_TYPE: {file_type}"
+
+    except FileNotFoundError:
+        return "ERROR_FILE_NOT_FOUND"
+    except pypdf.errors.PdfReadError as e:
+        return f"ERROR_PDF_EXTRACTION: Invalid PDF file or password protected. Details: {e}"
+    except Exception as e:
+        # Catch other potential errors (docx corruption, decoding issues, etc.)
+        return f"ERROR_EXTRACTION_FAILED: {e.__class__.__name__}: {e}"
+    
+    # Clean the extracted text: replace multiple whitespaces with single space and strip
+    return " ".join(text.split()).strip()
+
+# ---
 
 def preprocess_text(text: str) -> List[str]:
-    sentences = re.split(r'(?<=[.?!])\s+', text)
-    return [s.strip() for s in sentences if s.strip() and len(s.strip()) > 10]
+    """
+    Splits the cleaned text into sentences, filtering out short or empty strings.
 
+    Args:
+        text: The cleaned text string.
+
+    Returns:
+        A list of cleaned sentences (strings).
+    """
+    # Regex splits by periods, question marks, or exclamation points followed by one or more spaces
+    sentences = re.split(r'(?<=[.?!])\s+', text)
+    
+    # Filter for non-empty sentences longer than 10 characters
+    return [s.strip() for s in sentences if s.strip() and len(s.strip()) > 10]
 # ============================================================
 #        PAUL'S CRITICAL THINKING ANALYZER ENGINE
 # ============================================================
