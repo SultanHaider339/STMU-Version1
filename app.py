@@ -546,7 +546,7 @@ def create_sentence_heatmap(sentence_results: List[Dict[str, Any]], title: str) 
 
 # ---
 
-def create_score_distribution(sentence_results: List[SentenceResult], title: str) -> go.Figure:
+def create_score_distribution(sentence_results: List[Dict[str, Any]], title: str) -> go.Figure:
     """
     Creates a histogram showing the distribution of the overall scores across all sentences.
     """
