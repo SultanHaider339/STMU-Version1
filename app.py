@@ -425,7 +425,7 @@ class CriticalThinkingAnalyzer:
 #               VISUALIZATION FUNCTIONS (Plotly)
 # ============================================================
 
-def create_standard_radar(averages: StandardAverages, title: str) -> go.Figure:
+def create_standard_radar(averages: Dict[str, float], title: str) -> go.Figure:
     """
     Creates a radar chart to visualize the overall score for each Critical Thinking Standard.
     """
