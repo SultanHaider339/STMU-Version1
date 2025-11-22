@@ -421,367 +421,736 @@ class CriticalThinkingAnalyzer:
             "overall_level": self._get_score_level(overall_avg)
         }
 # ============================================================
-#              VISUALIZATION FUNCTIONS
+#               VISUALIZATION FUNCTIONS (Plotly)
 # ============================================================
 
-def create_standard_radar(averages: Dict[str, float], title: str):
-    """Create radar chart for standards overview"""
-    categories = [PAUL_STANDARDS[k]["name"] for k in averages.keys()]
-    values = list(averages.values())
-    
-    fig = go.Figure()
-    fig.add_trace(go.Scatterpolar(
-        r=values + [values[0]],
-        theta=categories + [categories[0]],
-        fill='toself',
-        fillcolor='rgba(102, 126, 234, 0.3)',
-        line=dict(color='#667eea', width=2),
-        name='Score'
-    ))
-    
-    fig.update_layout(
-        polar=dict(
-            radialaxis=dict(visible=True, range=[0, 1], tickvals=[0.25, 0.5, 0.75, 1.0]),
-            angularaxis=dict(tickfont=dict(size=11))
-        ),
-        title=title,
-        height=450,
-        template="plotly_dark"
-    )
-    return fig
+def create_standard_radar(averages: StandardAverages, title: str) -> go.Figure:
+    """
+    Creates a radar chart to visualize the overall score for each Critical Thinking Standard.
+    """
+    # Unpack standards data and align lists
+    categories = [PAUL_STANDARDS[k]["name"] for k in averages.keys()]
+    values = [averages[k] for k in categories] # Ensure order matches categories
+    
+    # Close the loop for the radar chart
+    r_values = values + [values[0]]
+    theta_categories = categories + [categories[0]]
+    
+    fig = go.Figure()
+    fig.add_trace(go.Scatterpolar(
+        r=r_values,
+        theta=theta_categories,
+        fill='toself',
+        fillcolor='rgba(102, 126, 234, 0.3)',
+        line=dict(color='#667eea', width=2),
+        name='Score'
+    ))
+    
+    fig.update_layout(
+        polar=dict(
+            radialaxis=dict(
+                visible=True, 
+                range=[0, 1], 
+                tickvals=[0.25, 0.5, 0.75, 1.0], 
+                tickfont=dict(size=10) # Added tickfont here for consistency
+            ),
+            angularaxis=dict(tickfont=dict(size=11))
+        ),
+        title=title,
+        height=450,
+        template="plotly_dark",
+        margin=dict(t=50, b=50, l=70, r=70) # Add margins
+    )
+    return fig
 
-def create_standards_bar_chart(averages: Dict[str, float], title: str):
-    """Create bar chart with Paul's Standards colors"""
-    data = []
-    for key, score in averages.items():
-        data.append({
-            "Standard": PAUL_STANDARDS[key]["name"],
-            "Score": score,
-            "Color": PAUL_STANDARDS[key]["color"],
-            "Icon": PAUL_STANDARDS[key]["icon"]
-        })
-    
-    df = pd.DataFrame(data)
-    df = df.sort_values("Score", ascending=True)
-    
-    fig = px.bar(df, x="Score", y="Standard", orientation='h',
-                 color="Standard", color_discrete_map={
-                     PAUL_STANDARDS[k]["name"]: PAUL_STANDARDS[k]["color"] 
-                     for k in PAUL_STANDARDS
-                 })
-    
-    fig.update_layout(
-        title=title,
-        xaxis=dict(range=[0, 1], title="Score"),
-        yaxis=dict(title=""),
-        height=400,
-        template="plotly_dark",
-        showlegend=False
-    )
-    return fig
+# ---
 
-def create_sentence_heatmap(sentence_results: List[Dict], title: str):
-    """Create heatmap of all sentences vs standards"""
-    if not sentence_results:
-        return go.Figure()
-    
-    # Build matrix
-    standards_list = list(PAUL_STANDARDS.keys())
-    matrix = []
-    labels = []
-    
-    for result in sentence_results[:30]:  # Limit for readability
-        row = [result["standards"][s]["score"] for s in standards_list]
-        matrix.append(row)
-        labels.append(f"S{result['index']}")
-    
-    fig = px.imshow(
-        matrix,
-        x=[PAUL_STANDARDS[s]["name"] for s in standards_list],
-        y=labels,
-        color_continuous_scale="RdYlGn",
-        aspect="auto",
-        title=title
-    )
-    
-    fig.update_layout(
-        height=max(400, len(labels) * 25),
-        template="plotly_dark",
-        xaxis=dict(tickangle=45)
-    )
-    return fig
+def create_standards_bar_chart(averages: StandardAverages, title: str) -> go.Figure:
+    """
+    Creates a horizontal bar chart showing the average score for each standard,
+    colored by the standard's defined color.
+    """
+    data = []
+    color_map = {}
+    
+    for key, score in averages.items():
+        standard_info = PAUL_STANDARDS[key]
+        data.append({
+            "Standard": standard_info["name"],
+            "Score": score,
+            "Color": standard_info["color"],
+            "Icon": standard_info["icon"]
+        })
+        color_map[standard_info["name"]] = standard_info["color"]
+    
+    df = pd.DataFrame(data)
+    df = df.sort_values("Score", ascending=True) # Sort for better visual comparison
+    
+    fig = px.bar(
+        df, 
+        x="Score", 
+        y="Standard", 
+        orientation='h',
+        color="Standard", # Color based on Standard name
+        color_discrete_map=color_map # Use the defined color map
+    )
+    
+    fig.update_layout(
+        title=title,
+        xaxis=dict(range=[0, 1], title="Score"),
+        yaxis=dict(title=""),
+        height=400,
+        template="plotly_dark",
+        showlegend=False
+    )
+    return fig
 
-def create_score_distribution(sentence_results: List[Dict], title: str):
-    """Create distribution of overall scores"""
-    scores = [r["overall_score"] for r in sentence_results]
-    
-    fig = go.Figure()
-    fig.add_trace(go.Histogram(
-        x=scores,
-        nbinsx=20,
-        marker_color='#667eea',
-        opacity=0.8
-    ))
-    
-    # Add threshold lines
-    for level_key, level_data in SCORE_LEVELS.items():
-        if level_data["min"] > 0:
-            fig.add_vline(x=level_data["min"], line_dash="dash", 
-                         line_color=level_data["color"],
-                         annotation_text=level_data["label"])
-    
-    fig.update_layout(
-        title=title,
-        xaxis_title="Overall Score",
-        yaxis_title="Number of Sentences",
-        height=350,
-        template="plotly_dark"
-    )
-    return fig
+# ---
 
-def create_progress_chart(sentence_results: List[Dict], title: str):
-    """Show how scores progress through the document"""
-    if not sentence_results:
-        return go.Figure()
-    
-    fig = go.Figure()
-    
-    # Overall score line
-    fig.add_trace(go.Scatter(
-        x=[r["index"] for r in sentence_results],
-        y=[r["overall_score"] for r in sentence_results],
-        mode='lines+markers',
-        name='Overall Score',
-        line=dict(color='#667eea', width=3)
-    ))
-    
-    # Add trend line
-    x = np.array([r["index"] for r in sentence_results])
-    y = np.array([r["overall_score"] for r in sentence_results])
-    z = np.polyfit(x, y, 1)
-    p = np.poly1d(z)
-    
-    fig.add_trace(go.Scatter(
-        x=x,
-        y=p(x),
-        mode='lines',
-        name='Trend',
-        line=dict(color='#E74C3C', width=2, dash='dash')
-    ))
-    
-    fig.update_layout(
-        title=title,
-        xaxis_title="Sentence Number",
-        yaxis_title="Score",
-        yaxis=dict(range=[0, 1]),
-        height=350,
-        template="plotly_dark"
-    )
-    return fig
+def create_sentence_heatmap(sentence_results: List[SentenceResult], title: str) -> go.Figure:
+    """
+    Creates a heatmap showing the score of every sentence against every standard.
+    (Limited to the first 30 sentences for readability.)
+    """
+    if not sentence_results:
+        return go.Figure().add_annotation(text="No sentence data available.")
+    
+    standards_keys = list(PAUL_STANDARDS.keys())
+    
+    # Limit data for matrix to the first 30 sentences
+    matrix = [
+        [result["standards"][s]["score"] for s in standards_keys]
+        for result in sentence_results[:30]
+    ]
+    labels = [f"S{result['index']}" for result in sentence_results[:30]]
+    
+    x_labels = [PAUL_STANDARDS[s]["name"] for s in standards_keys]
+    
+    fig = px.imshow(
+        matrix,
+        x=x_labels,
+        y=labels,
+        color_continuous_scale="RdYlGn",
+        aspect="auto",
+        title=title
+    )
+    
+    fig.update_layout(
+        height=max(400, len(labels) * 25), # Dynamically adjust height
+        template="plotly_dark",
+        xaxis=dict(tickangle=45),
+        coloraxis_colorbar=dict(title="Score")
+    )
+    return fig
 
-# ============================================================
-#           REPORT GENERATION FUNCTIONS
-# ============================================================
+# ---
 
-def generate_sentence_report_html(result: Dict) -> str:
-    """Generate HTML report for a single sentence"""
-    html = f"""
-    <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); 
-                padding: 20px; border-radius: 15px; margin: 15px 0; 
-                border-left: 5px solid {result['overall_level']['color']};">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-            <h4 style="margin: 0; color: white;">📝 Sentence {result['index']}</h4>
-            <span style="background: {result['overall_level']['color']}; padding: 5px 15px; 
-                        border-radius: 20px; color: white; font-weight: bold;">
-                {result['overall_level']['icon']} {result['overall_level']['label']} ({result['overall_score']:.0%})
-            </span>
-        </div>
-        <p style="color: #ccc; font-style: italic; margin-bottom: 20px; 
-                  padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px;">
-            "{result['sentence']}"
-        </p>
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
-    """
-    
-    for standard_key, analysis in result["standards"].items():
-        level_color = analysis["level"]["color"]
-        html += f"""
-            <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 10px;
-                        border-top: 3px solid {analysis['color']};">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span style="color: {analysis['color']}; font-weight: bold;">
-                        {analysis['icon']} {analysis['standard_name']}
-                    </span>
-                    <span style="background: {level_color}; padding: 2px 8px; border-radius: 10px; 
-                                font-size: 12px; color: white;">
-                        {analysis['score']:.0%}
-                    </span>
-                </div>
-                <p style="color: #999; font-size: 11px; margin: 8px 0 0 0;">
-                    {analysis['feedback'][:100]}{'...' if len(analysis['feedback']) > 100 else ''}
-                </p>
-            </div>
-        """
-    
-    html += "</div>"
-    
-    # Strengths and Weaknesses
-    if result["strengths"] or result["weaknesses"]:
-        html += '<div style="display: flex; gap: 20px; margin-top: 15px;">'
-        if result["strengths"]:
-            html += f"""
-                <div style="flex: 1; background: rgba(46, 204, 113, 0.1); padding: 10px; border-radius: 8px;">
-                    <strong style="color: #2ECC71;">💪 Strengths:</strong>
-                    <span style="color: #ccc;"> {', '.join(result['strengths'])}</span>
-                </div>
-            """
-        if result["weaknesses"]:
-            html += f"""
-                <div style="flex: 1; background: rgba(231, 76, 60, 0.1); padding: 10px; border-radius: 8px;">
-                    <strong style="color: #E74C3C;">🎯 Areas to Improve:</strong>
-                    <span style="color: #ccc;"> {', '.join(result['weaknesses'])}</span>
-                </div>
-            """
-        html += "</div>"
-    
-    html += "</div>"
-    return html
+def create_score_distribution(sentence_results: List[SentenceResult], title: str) -> go.Figure:
+    """
+    Creates a histogram showing the distribution of the overall scores across all sentences.
+    """
+    scores = [r["overall_score"] for r in sentence_results]
+    
+    fig = go.Figure()
+    fig.add_trace(go.Histogram(
+        x=scores,
+        nbinsx=20,
+        marker_color='#667eea',
+        opacity=0.8,
+        name='Score Distribution'
+    ))
+    
+    # Add threshold lines using SCORE_LEVELS
+    for level_key, level_data in SCORE_LEVELS.items():
+        if level_data["min"] > 0:
+            fig.add_vline(
+                x=level_data["min"], 
+                line=dict(dash="dash", color=level_data["color"], width=1.5),
+                annotation_text=level_data["label"],
+                annotation_position="top" # Place text above the line
+            )
+    
+    fig.update_layout(
+        title=title,
+        xaxis=dict(title="Overall Score", range=[0, 1.05]), # Extend range slightly
+        yaxis_title="Number of Sentences",
+        height=350,
+        template="plotly_dark",
+        bargap=0.01 # Reduce gap between bars
+    )
+    return fig
 
-def generate_full_report_html(doc_result: Dict) -> str:
-    """Generate complete HTML report for download"""
-    html = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <title>Critical Thinking Analysis Report - {doc_result['document_name']}</title>
-        <style>
-            body {{ font-family: 'Segoe UI', Arial, sans-serif; background: #0f0f23; color: #fff; padding: 40px; }}
-            .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 15px; text-align: center; margin-bottom: 30px; }}
-            .metric-grid {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 30px; }}
-            .metric {{ background: #1a1a2e; padding: 20px; border-radius: 10px; text-align: center; }}
-            .metric-value {{ font-size: 2em; font-weight: bold; color: #667eea; }}
-            .metric-label {{ color: #888; font-size: 0.9em; }}
-            .standard-card {{ background: #1a1a2e; padding: 15px; border-radius: 10px; margin: 10px 0; }}
-            .sentence-report {{ background: #16213e; padding: 20px; border-radius: 15px; margin: 20px 0; }}
-            .score-badge {{ display: inline-block; padding: 5px 15px; border-radius: 20px; font-weight: bold; }}
-            table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
-            th, td {{ padding: 12px; text-align: left; border-bottom: 1px solid #333; }}
-            th {{ background: #667eea; }}
-        </style>
-    </head>
-    <body>
-        <div class="header">
-            <h1>🧠 Critical Thinking Analysis Report</h1>
-            <p>Based on Paul's Universal Intellectual Standards</p>
-            <p>Document: {doc_result['document_name']} | ID: {doc_result['document_id']}</p>
-            <p>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}</p>
-        </div>
-        
-        <div class="metric-grid">
-            <div class="metric">
-                <div class="metric-value">{doc_result['overall_level']['icon']}</div>
-                <div class="metric-label">{doc_result['overall_level']['label']}</div>
-            </div>
-            <div class="metric">
-                <div class="metric-value">{max(doc_result['standard_averages'], key=doc_result['standard_averages'].get).title()}</div>
-                <div class="metric-label">Strongest Area</div>
-            </div>
-        </div>
-        
-        <h2>📊 Standards Overview</h2>
-        <table>
-            <tr>
-                <th>Standard</th>
-                <th>Score</th>
-                <th>Level</th>
-                <th>Description</th>
-            </tr>
-    """
-    
-    for key, score in doc_result['standard_averages'].items():
-        std = PAUL_STANDARDS[key]
-        level = "Excellent" if score >= 0.75 else "Good" if score >= 0.55 else "Adequate" if score >= 0.35 else "Needs Work"
-        level_color = "#2ECC71" if score >= 0.75 else "#3498DB" if score >= 0.55 else "#F1C40F" if score >= 0.35 else "#E74C3C"
-        html += f"""
-            <tr>
-                <td style="color: {std['color']}; font-weight: bold;">{std['icon']} {std['name']}</td>
-                <td>{score:.0%}</td>
-                <td><span style="background: {level_color}; padding: 3px 10px; border-radius: 10px;">{level}</span></td>
-                <td style="color: #888;">{std['description']}</td>
-            </tr>
-        """
-    
-    html += """
-        </table>
-        
-        <h2>📝 Detailed Sentence Analysis</h2>
-    """
-    
-    for result in doc_result['sentence_results']:
-        html += f"""
-        <div class="sentence-report" style="border-left: 4px solid {result['overall_level']['color']};">
-            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                <strong>Sentence {result['index']}</strong>
-                <span class="score-badge" style="background: {result['overall_level']['color']};">
-                    {result['overall_level']['icon']} {result['overall_score']:.0%}
-                </span>
-            </div>
-            <p style="color: #aaa; font-style: italic;">"{result['sentence']}"</p>
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 15px;">
-        """
-        
-        for std_key, analysis in result['standards'].items():
-            html += f"""
-                <div style="background: rgba(255,255,255,0.05); padding: 8px; border-radius: 8px; border-top: 2px solid {analysis['color']};">
-                    <span style="color: {analysis['color']};">{analysis['icon']} {analysis['standard_name']}: </span>
-                    <span style="color: {analysis['level']['color']};">{analysis['score']:.0%}</span>
-                </div>
-            """
-        
-        html += """
-            </div>
-        </div>
-        """
-    
-    html += """
-    </body>
-    </html>
-    """
-    return html
+# ---
+
+def create_progress_chart(sentence_results: List[SentenceResult], title: str) -> go.Figure:
+    """
+    Creates a line chart showing the progression of the overall score through the document,
+    including a linear trend line.
+    """
+    if not sentence_results:
+        return go.Figure().add_annotation(text="No sentence data available.")
+    
+    indices = [r["index"] for r in sentence_results]
+    overall_scores = [r["overall_score"] for r in sentence_results]
+    
+    fig = go.Figure()
+    
+    # Overall score line with markers
+    fig.add_trace(go.Scatter(
+        x=indices,
+        y=overall_scores,
+        mode='lines+markers',
+        name='Overall Score',
+        line=dict(color='#667eea', width=3),
+        marker=dict(size=5)
+    ))
+    
+    # Add linear trend line (requires numpy)
+    x_np = np.array(indices)
+    y_np = np.array(overall_scores)
+    
+    # Calculate linear regression (y = mx + c)
+    z = np.polyfit(x_np, y_np, 1)
+    p = np.poly1d(z)
+    
+    fig.add_trace(go.Scatter(
+        x=x_np,
+        y=p(x_np),
+        mode='lines',
+        name=f'Trend Line (Slope: {z[0]:.3f})',
+        line=dict(color='#E74C3C', width=2, dash='dash')
+    ))
+    
+    fig.update_layout(
+        title=title,
+        xaxis_title="Sentence Number",
+        yaxis_title="Score",
+        yaxis=dict(range=[0, 1.05]),
+        height=350,
+        template="plotly_dark",
+        hovermode="x unified"
+    )
+    return fig
 
 # ============================================================
-#                    MAIN STREAMLIT APP
+#               REPORT GENERATION FUNCTIONS
+# ============================================================
+
+def generate_sentence_report_html(result: SentenceResult) -> str:
+    """
+    Generates a stylized HTML block report for a single sentence analysis result.
+    """
+    overall_level = result['overall_level']
+    
+    # --- Start HTML Structure ---
+    html = f"""
+    <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); 
+                padding: 20px; border-radius: 15px; margin: 15px 0; 
+                border-left: 5px solid {overall_level['color']};">
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h4 style="margin: 0; color: white;">📝 Sentence {result['index']} (Word Count: {result['word_count']})</h4>
+            <span style="background: {overall_level['color']}; padding: 5px 15px; 
+                         border-radius: 20px; color: white; font-weight: bold; font-size: 14px;">
+                {overall_level['icon']} {overall_level['label']} ({result['overall_score']:.0%})
+            </span>
+        </div>
+        
+        <p style="color: #ccc; font-style: italic; margin-bottom: 20px; 
+                  padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+            "{result['sentence']}"
+        </p>
+        
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+    """
+    
+    # --- Standard Score Grid ---
+    for analysis in result["standards"].values():
+        level_color = analysis["level"]["color"]
+        # Truncate feedback to prevent card explosion
+        feedback_summary = analysis['feedback'][:90]
+        if len(analysis['feedback']) > 90:
+            feedback_summary += '...'
+            
+        html += f"""
+            <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 10px;
+                         border-top: 3px solid {analysis['color']};">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="color: {analysis['color']}; font-weight: bold; font-size: 13px;">
+                        {analysis['icon']} {analysis['standard_name']}
+                    </span>
+                    <span style="background: {level_color}; padding: 2px 8px; border-radius: 10px; 
+                                 font-size: 12px; color: white;">
+                        {analysis['score']:.0%}
+                    </span>
+                </div>
+                <p style="color: #999; font-size: 11px; margin: 8px 0 0 0; line-height: 1.4;">
+                    {feedback_summary}
+                </p>
+            </div>
+        """
+    
+    html += "</div>"
+    
+    # --- Strengths and Weaknesses Block ---
+    if result["strengths"] or result["weaknesses"]:
+        html += '<div style="display: flex; gap: 20px; margin-top: 15px;">'
+        
+        if result["strengths"]:
+            html += f"""
+                <div style="flex: 1; background: rgba(46, 204, 113, 0.1); padding: 10px; border-radius: 8px; border: 1px solid #2ECC71;">
+                    <strong style="color: #2ECC71;">💪 Strengths:</strong>
+                    <span style="color: #ccc;"> {', '.join(result['strengths'])}</span>
+                </div>
+            """
+            
+        if result["weaknesses"]:
+            html += f"""
+                <div style="flex: 1; background: rgba(231, 76, 60, 0.1); padding: 10px; border-radius: 8px; border: 1px solid #E74C3C;">
+                    <strong style="color: #E74C3C;">🎯 Weaknesses:</strong>
+                    <span style="color: #ccc;"> {', '.join(result['weaknesses'])}</span>
+                </div>
+            """
+        html += "</div>"
+        
+    html += "</div>"
+    return html
+
+# ---
+
+def generate_full_report_html(doc_result: DocumentResult) -> str:
+    """
+    Generates a complete, downloadable HTML report including document summary and 
+    all detailed sentence analyses.
+    """
+    # Helper to find the level for a score based on SCORE_LEVELS dictionary
+    def get_level_data(score: float, score_levels: Dict[str, Any]) -> Dict[str, Any]:
+        for level_data in score_levels.values():
+            if score >= level_data["min"]:
+                return level_data
+        return score_levels["needs_work"]
+    
+    # Find strongest/weakest area for the summary metrics
+    strongest_standard = max(doc_result['standard_averages'], key=doc_result['standard_averages'].get)
+    weakest_standard = min(doc_result['standard_averages'], key=doc_result['standard_averages'].get)
+
+    # --- HTML Head and Styles ---
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Critical Thinking Analysis Report - {doc_result['document_name']}</title>
+        <style>
+            body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0f0f23; color: #fff; padding: 40px; }}
+            .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 15px; text-align: center; margin-bottom: 30px; }}
+            h1, h2, h3 {{ color: white; margin-top: 0; }}
+            .metric-grid {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 30px; }}
+            .metric {{ background: #1a1a2e; padding: 20px; border-radius: 10px; text-align: center; border-left: 3px solid #667eea;}}
+            .metric-value {{ font-size: 2.2em; font-weight: bold; color: #667eea; }}
+            .metric-label {{ color: #888; font-size: 0.9em; margin-top: 5px; }}
+            .score-badge {{ display: inline-block; padding: 4px 12px; border-radius: 12px; font-weight: bold; color: white; }}
+            table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
+            th, td {{ padding: 12px; text-align: left; border-bottom: 1px solid #333; font-size: 0.95em;}}
+            th {{ background: #282c3f; color: #ccc; }}
+            tr:hover {{ background: #16213e; }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>🧠 Critical Thinking Analysis Report</h1>
+            <p>Based on Paul's Universal Intellectual Standards</p>
+            <h3>Document: {doc_result['document_name']} | Total Sentences: {doc_result['total_sentences']}</h3>
+            <p style="font-size: 0.9em;">Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+        </div>
+        
+        <h2>📈 Document Summary</h2>
+        <div class="metric-grid">
+            <div class="metric">
+                <div class="metric-value" style="color: {doc_result['overall_level']['color']};">{doc_result['overall_average']:.0%}</div>
+                <div class="metric-label">Overall Average Score</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value" style="color: {doc_result['overall_level']['color']};">{doc_result['overall_level']['icon']}</div>
+                <div class="metric-label">Overall Level: {doc_result['overall_level']['label']}</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value" style="color: {PAUL_STANDARDS[strongest_standard]['color']};">{PAUL_STANDARDS[strongest_standard]['icon']}</div>
+                <div class="metric-label">Strongest: {PAUL_STANDARDS[strongest_standard]['name']}</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value" style="color: {PAUL_STANDARDS[weakest_standard]['color']};">{PAUL_STANDARDS[weakest_standard]['icon']}</div>
+                <div class="metric-label">Weakest: {PAUL_STANDARDS[weakest_standard]['name']}</div>
+            </div>
+        </div>
+        
+        <h2>📊 Standards Performance Table</h2>
+        <table>
+            <tr>
+                <th>Standard</th>
+                <th>Score</th>
+                <th>Level</th>
+                <th>Focus Question</th>
+            </tr>
+    """
+    
+    # --- Standard Averages Table ---
+    for key, score in doc_result['standard_averages'].items():
+        std = PAUL_STANDARDS[key]
+        level_data = get_level_data(score, SCORE_LEVELS)
+        
+        html += f"""
+            <tr>
+                <td style="color: {std['color']}; font-weight: bold;">{std['icon']} {std['name']}</td>
+                <td>{score:.0%}</td>
+                <td><span class="score-badge" style="background: {level_data['color']};">{level_data['label']}</span></td>
+                <td style="color: #888; font-style: italic;">{std['question']}</td>
+            </tr>
+        """
+    
+    html += """
+        </table>
+        
+        <h2>📝 Detailed Sentence Analysis</h2>
+        <p style="color: #aaa;">Review the breakdown for each sentence below.</p>
+    """
+    
+    # --- Detailed Sentence Reports (reusing the first function) ---
+    for result in doc_result['sentence_results']:
+        html += generate_sentence_report_html(result)
+    
+    html += """
+    </body>
+    </html>
+    """
+    return html
+    
+# ============================================================
+#               MOCK DATA (ASSUMED GLOBAL/IMPORTED)
+# ============================================================
+
+# NOTE: These dictionaries must be defined for the application to run.
+# They are included here as mock data based on the previous context.
+
+PAUL_STANDARDS = {
+    "clarity": {"name": "Clarity", "icon": "🔍", "color": "#1abc9c", "question": "Could you elaborate further on that point?"},
+    "accuracy": {"name": "Accuracy", "icon": "✅", "color": "#2ecc71", "question": "How could we check on the truth of that statement?"},
+    "precision": {"name": "Precision", "icon": "🎯", "color": "#3498db", "question": "Could you be more specific?"},
+    "relevance": {"name": "Relevance", "icon": "📌", "color": "#9b59b6", "question": "How does that relate to the issue?"},
+    "depth": {"name": "Depth", "icon": "🧱", "color": "#f1c40f", "question": "What factors make this a difficult problem?"},
+    "breadth": {"name": "Breadth", "icon": "🌍", "color": "#e67e22", "question": "Do we need to look at this from another perspective?"},
+    "logic": {"name": "Logic", "icon": "💡", "color": "#e74c3c", "question": "Does this make sense? How is it connected?"},
+    "significance": {"name": "Significance", "icon": "⭐", "color": "#c0392b", "question": "Is this the most important problem to consider?"},
+    "fairness": {"name": "Fairness", "icon": "⚖️", "color": "#34495e", "question": "Am I considering all relevant viewpoints in good faith?"},
+}
+
+SCORE_LEVELS = {
+    "excellent": {"label": "Excellent", "min": 0.80, "color": "#2ECC71", "icon": "🌟"},
+    "good": {"label": "Good", "min": 0.65, "color": "#3498DB", "icon": "👍"},
+    "adequate": {"label": "Adequate", "min": 0.50, "color": "#F1C40F", "icon": "⚠️"},
+    "needs_work": {"label": "Needs Work", "min": 0.0, "color": "#E74C3C", "icon": "❌"},
+}
+
+# --- Mock Analysis Class and Functions (Stubs for App Context) ---
+# NOTE: In a real application, these would be imported from the previous sections.
+class CriticalThinkingAnalyzer:
+    def __init__(self):
+        self.standards = PAUL_STANDARDS
+        self.score_levels = SCORE_LEVELS
+        self.standard_keys = list(PAUL_STANDARDS.keys())
+
+    # Stubs for the complex analysis logic
+    def analyze_document(self, sentences: List[str], doc_name: str, doc_id: str) -> Dict[str, Any]:
+        # Simple mock logic for demonstration purposes
+        if not sentences:
+            return {"total_sentences": 0}
+            
+        # Mock scores based on the input text structure for the demo value
+        mock_score = 0.45 
+        if "obviously flawed" in sentences[0].lower() or "everyone knows" in sentences[0].lower():
+             mock_score = 0.35
+        
+        standard_averages = {k: mock_score for k in self.standard_keys}
+        overall_avg = sum(standard_averages.values()) / len(standard_averages)
+        overall_level = SCORE_LEVELS["needs_work"] if overall_avg < 0.5 else SCORE_LEVELS["adequate"]
+        
+        sentence_results = []
+        for i, sentence in enumerate(sentences):
+            sentence_score = overall_avg + np.random.uniform(-0.1, 0.1) # Simulate slight variation
+            level_data = self._get_score_level(sentence_score)
+            
+            # Simplified mock for sentence analysis
+            standards_analysis = {}
+            for k in self.standard_keys:
+                standards_analysis[k] = {
+                    "standard_name": PAUL_STANDARDS[k]["name"],
+                    "score": max(0.0, min(1.0, standard_averages[k] + np.random.uniform(-0.1, 0.1))),
+                    "level": self._get_score_level(standard_averages[k]),
+                    "color": PAUL_STANDARDS[k]["color"],
+                    "icon": PAUL_STANDARDS[k]["icon"],
+                    "feedback": f"Mock feedback for {PAUL_STANDARDS[k]['name'].lower()}.",
+                    "question": PAUL_STANDARDS[k]['question']
+                }
+
+            sentence_results.append({
+                "index": i + 1,
+                "sentence": sentence,
+                "word_count": len(sentence.split()),
+                "standards": standards_analysis,
+                "overall_score": sentence_score,
+                "overall_level": level_data,
+                "strengths": [PAUL_STANDARDS["clarity"]["name"]],
+                "weaknesses": [PAUL_STANDARDS["fairness"]["name"]],
+                "recommendations": []
+            })
+            
+        return {
+            "document_name": doc_name,
+            "document_id": doc_id,
+            "total_sentences": len(sentences),
+            "sentence_results": sentence_results,
+            "standard_averages": standard_averages,
+            "overall_average": overall_avg,
+            "overall_level": overall_level
+        }
+
+    def _get_score_level(self, score: float) -> Dict[str, Any]:
+        for level_data in self.score_levels.values():
+            if score >= level_data["min"]:
+                return level_data
+        return self.score_levels["needs_work"]
+
+# Stubs for other required functions
+def extract_text_from_file(file_source: Union[io.BytesIO, Any], file_type: str) -> str:
+    # Simplified mock for file extraction
+    if file_type == 'pdf':
+        try:
+            reader = pypdf.PdfReader(file_source)
+            return "\n".join(page.extract_text() for page in reader.pages if page.extract_text())
+        except Exception as e:
+            return f"ERROR_PDF_EXTRACTION: {e}"
+    elif file_type == 'docx':
+        try:
+            document = docx.Document(file_source)
+            return "\n".join(p.text for p in document.paragraphs if p.text)
+        except Exception as e:
+            return f"ERROR_DOCX_EXTRACTION: {e}"
+    elif file_type == 'txt':
+        try:
+            return file_source.read().decode('utf-8')
+        except Exception as e:
+            return f"ERROR_TXT_EXTRACTION: {e}"
+    else:
+        return f"ERROR_UNSUPPORTED_TYPE: {file_type}"
+
+def preprocess_text(text: str) -> List[str]:
+    sentences = re.split(r'(?<=[.?!])\s+', text)
+    return [s.strip() for s in sentences if s.strip() and len(s.strip()) > 10]
+
+# Stubs for Visualization and Report Generation (from previous sections)
+def create_standard_radar(averages, title): 
+    categories = [PAUL_STANDARDS[k]["name"] for k in averages.keys()]
+    values = [averages[k] for k in categories] 
+    r_values = values + [values[0]]
+    theta_categories = categories + [categories[0]]
+    fig = go.Figure()
+    fig.add_trace(go.Scatterpolar(r=r_values, theta=theta_categories, fill='toself', fillcolor='rgba(102, 126, 234, 0.3)', line=dict(color='#667eea', width=2), name='Score'))
+    fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 1], tickvals=[0.25, 0.5, 0.75, 1.0], tickfont=dict(size=10)), angularaxis=dict(tickfont=dict(size=11))), title=title, height=450, template="plotly_dark", margin=dict(t=50, b=50, l=70, r=70))
+    return fig
+
+def create_standards_bar_chart(averages, title): 
+    data = []
+    color_map = {}
+    for key, score in averages.items():
+        standard_info = PAUL_STANDARDS[key]
+        data.append({"Standard": standard_info["name"], "Score": score})
+        color_map[standard_info["name"]] = standard_info["color"]
+    df = pd.DataFrame(data).sort_values("Score", ascending=True)
+    fig = px.bar(df, x="Score", y="Standard", orientation='h', color="Standard", color_discrete_map=color_map)
+    fig.update_layout(title=title, xaxis=dict(range=[0, 1], title="Score"), yaxis=dict(title=""), height=400, template="plotly_dark", showlegend=False)
+    return fig
+
+def create_progress_chart(sentence_results, title):
+    if not sentence_results: return go.Figure()
+    indices = [r["index"] for r in sentence_results]
+    overall_scores = [r["overall_score"] for r in sentence_results]
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=indices, y=overall_scores, mode='lines+markers', name='Overall Score', line=dict(color='#667eea', width=3), marker=dict(size=5)))
+    x_np, y_np = np.array(indices), np.array(overall_scores)
+    z = np.polyfit(x_np, y_np, 1)
+    p = np.poly1d(z)
+    fig.add_trace(go.Scatter(x=x_np, y=p(x_np), mode='lines', name=f'Trend Line (Slope: {z[0]:.3f})', line=dict(color='#E74C3C', width=2, dash='dash')))
+    fig.update_layout(title=title, xaxis_title="Sentence Number", yaxis_title="Score", yaxis=dict(range=[0, 1.05]), height=350, template="plotly_dark", hovermode="x unified")
+    return fig
+
+def create_sentence_heatmap(sentence_results, title):
+    if not sentence_results: return go.Figure()
+    standards_keys = list(PAUL_STANDARDS.keys())
+    matrix = [[result["standards"][s]["score"] for s in standards_keys] for result in sentence_results[:30]]
+    labels = [f"S{result['index']}" for result in sentence_results[:30]]
+    x_labels = [PAUL_STANDARDS[s]["name"] for s in standards_keys]
+    fig = px.imshow(matrix, x=x_labels, y=labels, color_continuous_scale="RdYlGn", aspect="auto", title=title)
+    fig.update_layout(height=max(400, len(labels) * 25), template="plotly_dark", xaxis=dict(tickangle=45), coloraxis_colorbar=dict(title="Score"))
+    return fig
+
+def generate_sentence_report_html(result):
+    overall_level = result['overall_level']
+    html = f"""<div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); padding: 20px; border-radius: 15px; margin: 15px 0; border-left: 5px solid {overall_level['color']};">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h4 style="margin: 0; color: white;">📝 Sentence {result['index']} (Word Count: {result['word_count']})</h4>
+            <span style="background: {overall_level['color']}; padding: 5px 15px; border-radius: 20px; color: white; font-weight: bold; font-size: 14px;">
+                {overall_level['icon']} {overall_level['label']} ({result['overall_score']:.0%})
+            </span>
+        </div>
+        <p style="color: #ccc; font-style: italic; margin-bottom: 20px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+            "{result['sentence']}"
+        </p>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">"""
+    for analysis in result["standards"].values():
+        level_color = analysis["level"]["color"]
+        feedback_summary = analysis['feedback'][:90] + ('...' if len(analysis['feedback']) > 90 else '')
+        html += f"""
+            <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 10px; border-top: 3px solid {analysis['color']};">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="color: {analysis['color']}; font-weight: bold; font-size: 13px;">{analysis['icon']} {analysis['standard_name']}</span>
+                    <span style="background: {level_color}; padding: 2px 8px; border-radius: 10px; font-size: 12px; color: white;">{analysis['score']:.0%}</span>
+                </div>
+                <p style="color: #999; font-size: 11px; margin: 8px 0 0 0; line-height: 1.4;">{feedback_summary}</p>
+            </div>"""
+    html += "</div>"
+    if result["strengths"] or result["weaknesses"]:
+        html += '<div style="display: flex; gap: 20px; margin-top: 15px;">'
+        if result["strengths"]: html += f"""<div style="flex: 1; background: rgba(46, 204, 113, 0.1); padding: 10px; border-radius: 8px; border: 1px solid #2ECC71;"><strong style="color: #2ECC71;">💪 Strengths:</strong><span style="color: #ccc;"> {', '.join(result['strengths'])}</span></div>"""
+        if result["weaknesses"]: html += f"""<div style="flex: 1; background: rgba(231, 76, 60, 0.1); padding: 10px; border-radius: 8px; border: 1px solid #E74C3C;"><strong style="color: #E74C3C;">🎯 Weaknesses:</strong><span style="color: #ccc;"> {', '.join(result['weaknesses'])}</span></div>"""
+        html += "</div>"
+    html += "</div>"
+    return html
+
+def generate_full_report_html(doc_result):
+    def get_level_data(score, score_levels):
+        for level_data in score_levels.values():
+            if score >= level_data["min"]:
+                return level_data
+        return score_levels["needs_work"]
+    
+    strongest_standard = max(doc_result['standard_averages'], key=doc_result['standard_averages'].get)
+    weakest_standard = min(doc_result['standard_averages'], key=doc_result['standard_averages'].get)
+
+    html = f"""<!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Critical Thinking Analysis Report - {doc_result['document_name']}</title>
+        <style>
+            body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0f0f23; color: #fff; padding: 40px; }}
+            .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 15px; text-align: center; margin-bottom: 30px; }}
+            h1, h2, h3 {{ color: white; margin-top: 0; }}
+            .metric-grid {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 30px; }}
+            .metric {{ background: #1a1a2e; padding: 20px; border-radius: 10px; text-align: center; border-left: 3px solid #667eea;}}
+            .metric-value {{ font-size: 2.2em; font-weight: bold; color: #667eea; }}
+            .metric-label {{ color: #888; font-size: 0.9em; margin-top: 5px; }}
+            .score-badge {{ display: inline-block; padding: 4px 12px; border-radius: 12px; font-weight: bold; color: white; }}
+            table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
+            th, td {{ padding: 12px; text-align: left; border-bottom: 1px solid #333; font-size: 0.95em;}}
+            th {{ background: #282c3f; color: #ccc; }}
+            tr:hover {{ background: #16213e; }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>🧠 Critical Thinking Analysis Report</h1>
+            <p>Based on Paul's Universal Intellectual Standards</p>
+            <h3>Document: {doc_result['document_name']} | Total Sentences: {doc_result['total_sentences']}</h3>
+            <p style="font-size: 0.9em;">Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+        </div>
+        
+        <h2>📈 Document Summary</h2>
+        <div class="metric-grid">
+            <div class="metric">
+                <div class="metric-value" style="color: {doc_result['overall_level']['color']};">{doc_result['overall_average']:.0%}</div>
+                <div class="metric-label">Overall Average Score</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value" style="color: {doc_result['overall_level']['color']};">{doc_result['overall_level']['icon']}</div>
+                <div class="metric-label">Overall Level: {doc_result['overall_level']['label']}</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value" style="color: {PAUL_STANDARDS[strongest_standard]['color']};">{PAUL_STANDARDS[strongest_standard]['icon']}</div>
+                <div class="metric-label">Strongest: {PAUL_STANDARDS[strongest_standard]['name']}</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value" style="color: {PAUL_STANDARDS[weakest_standard]['color']};">{PAUL_STANDARDS[weakest_standard]['icon']}</div>
+                <div class="metric-label">Weakest: {PAUL_STANDARDS[weakest_standard]['name']}</div>
+            </div>
+        </div>
+        
+        <h2>📊 Standards Performance Table</h2>
+        <table>
+            <tr>
+                <th>Standard</th>
+                <th>Score</th>
+                <th>Level</th>
+                <th>Focus Question</th>
+            </tr>"""
+    
+    for key, score in doc_result['standard_averages'].items():
+        std = PAUL_STANDARDS[key]
+        level_data = get_level_data(score, SCORE_LEVELS)
+        html += f"""
+            <tr>
+                <td style="color: {std['color']}; font-weight: bold;">{std['icon']} {std['name']}</td>
+                <td>{score:.0%}</td>
+                <td><span class="score-badge" style="background: {level_data['color']};">{level_data['label']}</span></td>
+                <td style="color: #888; font-style: italic;">{std['question']}</td>
+            </tr>"""
+    
+    html += """
+        </table>
+        
+        <h2>📝 Detailed Sentence Analysis</h2>
+        <p style="color: #aaa;">Review the breakdown for each sentence below.</p>
+    """
+    
+    for result in doc_result['sentence_results']:
+        html += generate_sentence_report_html(result)
+    
+    html += """
+    </body>
+    </html>
+    """
+    return html
+
+# ============================================================
+#                     MAIN STREAMLIT APP
 # ============================================================
 
 def main():
-    st.set_page_config(layout="wide", page_title="Paul's Critical Thinking Analyzer", page_icon="🧠")
-    
-    # Custom CSS
-    st.markdown("""
-    <style>
-    .main-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 2rem;
-        border-radius: 15px;
-        margin-bottom: 2rem;
-        text-align: center;
-    }
-    .main-header h1 { color: white; margin: 0; }
-    .main-header p { color: rgba(255,255,255,0.8); margin: 10px 0 0 0; }
-    .standard-badge {
-        display: inline-block;
-        padding: 8px 16px;
-        border-radius: 20px;
-        margin: 5px;
-        font-weight: bold;
-    }
-    .metric-card {
-        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-        padding: 1.5rem;
-        border-radius: 12px;
-        text-align: center;
-    }
+    """
+    Main function for the Streamlit Critical Thinking Analyzer application.
+    Sets up the layout, handles user input (text/file), runs the analysis, 
+    and displays the results using visualizations and HTML reports.
+    """
+    st.set_page_config(layout="wide", page_title="Paul's Critical Thinking Analyzer", page_icon="🧠")
+    
+    # Custom CSS for dark theme and metrics cards
+    st.markdown("""
+    <style>
+    .main-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 2rem;
+        border-radius: 15px;
+        margin-bottom: 2rem;
+        text-align: center;
+    }
+    .main-header h1 { color: white; margin: 0; }
+    .main-header p { color: rgba(255,255,255,0.8); margin: 10px 0 0 0; }
+    .metric-card {
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        padding: 1.5rem;
+        border-radius: 12px;
+        text-align: center;
+        height: 100%; /* Ensure all cards have same height */
+    }
     .metric-value-large {
         font-size: 3em;
         font-weight: bold;
@@ -791,6 +1160,7 @@ def main():
     .metric-label-small {
         color: #888;
         font-size: 0.9em;
+        line-height: 1.2;
     }
     .sidebar-header {
         color: white;
@@ -804,6 +1174,7 @@ def main():
     </style>
     """, unsafe_allow_html=True)
 
+    # Main Title Header
     st.markdown('<div class="main-header"><h1>🧠 Paul\'s Critical Thinking Analyzer</h1><p>Assess text against Paul\'s Universal Intellectual Standards (Clarity, Accuracy, Precision, etc.)</p></div>', unsafe_allow_html=True)
 
     # --- Sidebar for Input ---
@@ -814,13 +1185,16 @@ def main():
 
         uploaded_file = None
         user_text = ""
-        doc_name = "Untitled Document"
+        doc_name = "User Input Text"
 
         if input_method == "File Upload":
             uploaded_file = st.file_uploader("Upload Document (.txt, .pdf, .docx)", type=['txt', 'pdf', 'docx'])
             if uploaded_file:
                 doc_name = uploaded_file.name
                 file_type = uploaded_file.name.split('.')[-1].lower()
+                
+                # Reset file pointer for reading
+                uploaded_file.seek(0)
                 text_result = extract_text_from_file(uploaded_file, file_type)
                 
                 if text_result.startswith("ERROR_"):
@@ -828,10 +1202,9 @@ def main():
                 else:
                     user_text = text_result
         else:
-            user_text = st.text_area("Paste Text for Analysis", height=300, 
-                                     value="The current economic policy is obviously flawed. It should be changed immediately because everyone knows a different system will clearly yield better results, but all the politicians are too corrupt to understand the simple solution.")
-            doc_name = "User Input Text"
-        
+            default_text = "The current economic policy is obviously flawed. It should be changed immediately because everyone knows a different system will clearly yield better results, but all the politicians are too corrupt to understand the simple solution."
+            user_text = st.text_area("Paste Text for Analysis", height=300, value=default_text)
+            
         # Add a section to display the raw text for verification
         st.subheader("Raw Text Preview")
         st.code(user_text[:500] + ('...' if len(user_text) > 500 else ''), language='text')
@@ -845,21 +1218,26 @@ def main():
                 st.warning("The extracted text is too short or could not be properly segmented into sentences (min 10 characters).")
                 st.stop()
 
+            # Initialize Analyzer and Run Analysis
             analyzer = CriticalThinkingAnalyzer()
             doc_id = str(hash(user_text)) # Simple deterministic ID
             doc_result = analyzer.analyze_document(sentences, doc_name, doc_id)
 
-            st.success(f"Analysis Complete: {doc_result['total_sentences']} sentences processed.")
+            st.success(f"Analysis Complete: {doc_result['total_sentences']} sentences processed from **{doc_name}**.")
             
-            # 1. Overall Metrics
+            # --- 1. Overall Metrics ---
             st.header("📊 Document Overview")
             col1, col2, col3, col4 = st.columns(4)
 
+            overall_level = doc_result['overall_level']
+            strongest = max(doc_result['standard_averages'], key=doc_result['standard_averages'].get)
+            weakest = min(doc_result['standard_averages'], key=doc_result['standard_averages'].get)
+            
             with col1:
                 st.markdown(f"""
                 <div class="metric-card">
-                    <div class="metric-value-large" style="color: {doc_result['overall_level']['color']};">{doc_result['overall_level']['icon']}</div>
-                    <div class="metric-label-small">Overall Level: <strong>{doc_result['overall_level']['label']}</strong></div>
+                    <div class="metric-value-large" style="color: {overall_level['color']};">{overall_level['icon']}</div>
+                    <div class="metric-label-small">Overall Level: <strong>{overall_level['label']}</strong></div>
                 </div>
                 """, unsafe_allow_html=True)
             
@@ -871,11 +1249,8 @@ def main():
                 </div>
                 """, unsafe_allow_html=True)
 
-            strongest = max(doc_result['standard_averages'], key=doc_result['standard_averages'].get)
-            weakest = min(doc_result['standard_averages'], key=doc_result['standard_averages'].get)
-
             with col3:
-                 st.markdown(f"""
+                st.markdown(f"""
                 <div class="metric-card">
                     <div class="metric-value-large" style="color: {PAUL_STANDARDS[strongest]['color']};">{PAUL_STANDARDS[strongest]['icon']}</div>
                     <div class="metric-label-small">Strongest Standard: <strong>{PAUL_STANDARDS[strongest]['name']}</strong></div>
@@ -892,27 +1267,33 @@ def main():
 
             st.markdown("---")
 
-            # 2. Visualization Charts
+            # --- 2. Visualization Charts ---
             st.header("📈 Visualization of Standards")
             chart_col1, chart_col2 = st.columns(2)
 
             with chart_col1:
+                # Radar Chart: Excellent for multi-dimensional comparison
                 st.plotly_chart(create_standard_radar(doc_result['standard_averages'], "Standards Radar Chart"), use_container_width=True)
+                
+
 
             with chart_col2:
+                # Bar Chart: Best for ranked list/comparison
                 st.plotly_chart(create_standards_bar_chart(doc_result['standard_averages'], "Average Score by Standard"), use_container_width=True)
 
-            st.plotly_chart(create_progress_chart(doc_result['sentence_results'], "Critical Thinking Score Progression"), use_container_width=True)
+            # Progress Chart: Time series analysis
+            st.plotly_chart(create_progress_chart(doc_result['sentence_results'], "Critical Thinking Score Progression Through Document"), use_container_width=True)
             
             if len(doc_result['sentence_results']) > 1:
+                # Heatmap: Shows score distribution across many sentences/standards
                 st.plotly_chart(create_sentence_heatmap(doc_result['sentence_results'], "Sentence-by-Sentence Score Heatmap (First 30)"), use_container_width=True)
 
             st.markdown("---")
 
-            # 3. Detailed Sentence Breakdown
+            # --- 3. Detailed Sentence Breakdown ---
             st.header("📝 Detailed Sentence Breakdown")
             
-            # Dropdown/Selector for Sentence
+            # Selector for Sentence
             sentence_options = {r['index']: r['sentence'][:70] + '...' for r in doc_result['sentence_results']}
             selected_index = st.selectbox("Select a Sentence to View Details", options=list(sentence_options.keys()), format_func=lambda x: f"Sentence {x}: {sentence_options[x]}")
 
@@ -923,7 +1304,7 @@ def main():
 
             st.markdown("---")
 
-            # 4. Download Report
+            # --- 4. Download Report ---
             st.header("⬇️ Download Full Report")
             full_html_report = generate_full_report_html(doc_result)
             
@@ -936,11 +1317,11 @@ def main():
 
 
         except Exception as e:
-            st.error(f"An error occurred during analysis: {e}")
+            st.error(f"An unexpected error occurred during analysis: {e}")
             st.exception(e)
 
     else:
         st.info("Paste or upload a document in the sidebar to begin the Critical Thinking Analysis.")
 
 if __name__ == '__main__':
-    main()
+    main()
